@@ -920,6 +920,14 @@ export default function Wizard() {
     setSelectedWizardAccountIds(matching.length > 0 ? matching : socialAccountsList.map(a => a.id));
   }, [step, results?.platform, socialAccountsList]);
 
+  // When the "Pick a design" modal opens, auto-load remaining lineups so customers see all 12 designs without manual clicking
+  useEffect(() => {
+    if (moreDesignsModal && altLineupQueue.length > 0 && !loadingMoreDesigns) {
+      loadMoreDesigns();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [moreDesignsModal, altLineupQueue.length, loadingMoreDesigns]);
+
   const canProceed = () => {
     if (step === 1) return !!contentType;
     if (step === 2) return true; // format is optional — Skip sets Universal
@@ -1211,7 +1219,7 @@ export default function Wizard() {
 
       if ((genRes.photoCardUrls || genRes.carouselCardDesigns) && genRes.cardLineupIndex !== null && genRes.cardLineupIndex !== undefined) {
         const base = genRes.cardLineupIndex;
-        const remaining = [(base + 1) % 3, (base + 2) % 3];
+        const remaining = [(base + 1) % 4, (base + 2) % 4, (base + 3) % 4];
         setAltLineupQueue(remaining);
       } else {
         setAltLineupQueue([]);
@@ -1475,7 +1483,7 @@ export default function Wizard() {
     const [nextIdx, ...remaining] = altLineupQueue;
     try {
       const loadedCount = Object.keys(extraPhotoCardUrls).length;
-      const keyGroups = [['D','E','F'], ['G','H','I']];
+      const keyGroups = [['D','E','F'], ['G','H','I'], ['J','K','L']];
       const keys = keyGroups[Math.floor(loadedCount / 3)] || keyGroups[0];
 
       if (isCarousel) {
@@ -2376,6 +2384,7 @@ export default function Wizard() {
 
             <style>{`
               @keyframes wiz-pulse  { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.06);opacity:0.85} }
+              @keyframes pulse      { 0%,100%{opacity:1} 50%{opacity:0.45} }
               @keyframes spin       { to{transform:rotate(360deg)} }
               @keyframes bounce     { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-10px)} }
               @keyframes wiz-orb-1  { 0%,100%{transform:translateX(-50%) scale(1);opacity:1} 50%{transform:translateX(-50%) scale(1.15);opacity:0.7} }
@@ -2632,10 +2641,10 @@ export default function Wizard() {
                 {/* ── Card Style Picker — 3 template thumbnails (photo + carousel) ── */}
                 {(results.contentTypeSelection === 'photo' || results.contentTypeSelection === 'carousel') && (results.photoCardUrls || results.carouselCardDesigns) && (
                   (() => {
-                    const ALL_STYLE_KEYS = ['A','B','C','D','E','F','G','H','I'];
+                    const ALL_STYLE_KEYS = ['A','B','C','D','E','F','G','H','I','J','K','L'];
                     // Descriptive template names from backend TEMPLATE_META (no API cost — in-memory lookup)
                     // Falls back to generic label only if backend hasn't sent names yet
-                    const fallbackLabels = { A:'Style 1',B:'Style 2',C:'Style 3',D:'Style 4',E:'Style 5',F:'Style 6',G:'Style 7',H:'Style 8',I:'Style 9' };
+                    const fallbackLabels = { A:'Style 1',B:'Style 2',C:'Style 3',D:'Style 4',E:'Style 5',F:'Style 6',G:'Style 7',H:'Style 8',I:'Style 9',J:'Style 10',K:'Style 11',L:'Style 12' };
                     const styleLabels = ALL_STYLE_KEYS.reduce((acc, k) => {
                       acc[k] = cardTemplateNames[k] || fallbackLabels[k];
                       return acc;
@@ -2661,80 +2670,79 @@ export default function Wizard() {
                     return (
                       <div style={{ marginBottom: 12 }}>
                         <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
-                          Card Design{isCarouselPicker ? ' — tap to preview all slides' : ''}
+                          Card Design{isCarouselPicker ? ' — tap to preview slides' : ''}
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                           {styleKeys.map(key => {
                             const isActive = selectedCardStyle === key;
-                            const isPreviewing = carouselDesignPreview === key;
                             const designSlides = isCarouselPicker ? getDesignSlides(key) : [];
                             return (
-                              <button
-                                key={key}
-                                type="button"
-                                onClick={() => {
-                                  setSelectedCardStyle(key);
-                                  if (svgCards?.[key]) setActiveSvg(svgCards[key]);
-                                  else if (extraPhotoCardUrls[key]) setActiveSvg(null);
-                                  if (isCarouselPicker) {
-                                    setCarouselDesignPreview(prev => prev === key ? null : key);
-                                  }
-                                }}
-                                style={{
-                                  padding: 0, border: `2px solid ${isActive ? t.primary : t.border}`,
-                                  borderRadius: 10, overflow: 'hidden', cursor: 'pointer',
-                                  background: 'none', position: 'relative',
-                                  boxShadow: isActive ? `0 0 0 3px ${t.primary}30, 0 4px 16px rgba(0,0,0,0.18)` : '0 2px 8px rgba(0,0,0,0.12)',
-                                  transform: isActive ? 'scale(1.03)' : 'scale(1)',
-                                  transition: 'all 160ms cubic-bezier(0.34,1.56,0.64,1)',
-                                }}
-                              >
-                                <img
-                                  src={allUrls[key]}
-                                  alt={styleLabels[key]}
-                                  style={{ width: '100%', aspectRatio: '4/5', objectFit: 'cover', display: 'block' }}
-                                />
-                                {/* Slide count badge for carousels */}
-                                {isCarouselPicker && designSlides.length > 1 && (
-                                  <div style={{
-                                    position: 'absolute', top: 6, left: 6,
-                                    background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)',
-                                    color: '#fff', fontSize: 9, fontWeight: 700,
-                                    padding: '2px 7px', borderRadius: 20,
-                                    letterSpacing: '0.02em',
-                                  }}>
-                                    {designSlides.length} slides
-                                  </div>
-                                )}
-                                <div style={{
-                                  position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)',
-                                  background: isActive ? t.primary : 'rgba(0,0,0,0.68)',
-                                  color: '#fff', fontSize: 9, fontWeight: 800,
-                                  padding: '3px 10px', borderRadius: 20, whiteSpace: 'nowrap',
-                                  letterSpacing: '0.04em', backdropFilter: 'blur(8px)',
-                                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
-                                  maxWidth: '90%', overflow: 'hidden', textOverflow: 'ellipsis',
-                                }}>
-                                  <span>{styleLabels[key]}</span>
-                                  {styleCategories[key] && (
-                                    <span style={{ fontSize: 7, fontWeight: 500, opacity: 0.8, letterSpacing: '0.06em' }}>
-                                      {styleCategories[key].toUpperCase()}
-                                    </span>
+                              <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedCardStyle(key);
+                                    if (svgCards?.[key]) setActiveSvg(svgCards[key]);
+                                    else if (extraPhotoCardUrls[key]) setActiveSvg(null);
+                                    if (isCarouselPicker) {
+                                      setCarouselDesignPreview(prev => prev === key ? null : key);
+                                    }
+                                  }}
+                                  style={{
+                                    padding: 0, border: `2px solid ${isActive ? t.primary : t.border}`,
+                                    borderRadius: 10, overflow: 'hidden', cursor: 'pointer',
+                                    background: 'none', position: 'relative',
+                                    boxShadow: isActive ? `0 0 0 3px ${t.primary}25, 0 4px 12px rgba(0,0,0,0.18)` : '0 1px 4px rgba(0,0,0,0.10)',
+                                    transform: isActive ? 'scale(1.04)' : 'scale(1)',
+                                    transition: 'all 160ms cubic-bezier(0.34,1.56,0.64,1)',
+                                  }}
+                                >
+                                  <img
+                                    src={allUrls[key]}
+                                    alt={styleLabels[key]}
+                                    style={{ width: '100%', aspectRatio: '4/5', objectFit: 'cover', display: 'block' }}
+                                  />
+                                  {/* Slide count badge */}
+                                  {isCarouselPicker && designSlides.length > 1 && (
+                                    <div style={{
+                                      position: 'absolute', top: 5, left: 5,
+                                      background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)',
+                                      color: '#fff', fontSize: 8, fontWeight: 700,
+                                      padding: '2px 6px', borderRadius: 20,
+                                    }}>
+                                      {designSlides.length} slides
+                                    </div>
                                   )}
+                                  {/* Active checkmark */}
+                                  {isActive && (
+                                    <div style={{
+                                      position: 'absolute', top: 5, right: 5,
+                                      width: 20, height: 20, borderRadius: '50%',
+                                      background: t.primary, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                      boxShadow: '0 2px 8px rgba(0,0,0,0.35)',
+                                    }}>
+                                      <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                                        <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                                      </svg>
+                                    </div>
+                                  )}
+                                  {/* Category pill — bottom corner */}
+                                  {styleCategories[key] && !isActive && (
+                                    <div style={{
+                                      position: 'absolute', bottom: 5, left: 5,
+                                      background: 'rgba(0,0,0,0.60)', backdropFilter: 'blur(6px)',
+                                      color: '#fff', fontSize: 7, fontWeight: 700,
+                                      padding: '2px 7px', borderRadius: 20, letterSpacing: '0.05em',
+                                    }}>
+                                      {styleCategories[key].toUpperCase()}
+                                    </div>
+                                  )}
+                                </button>
+                                {/* Name below card — readable size */}
+                                <div style={{ fontSize: 10, fontWeight: 700, color: isActive ? t.primary : t.textMuted, textAlign: 'center', lineHeight: 1.2, paddingBottom: 2 }}>
+                                  {styleLabels[key]}
                                 </div>
-                                {isActive && (
-                                  <div style={{
-                                    position: 'absolute', top: 6, right: 6,
-                                    width: 20, height: 20, borderRadius: '50%',
-                                    background: t.primary, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                                  }}>
-                                    <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
-                                      <path d="M1 4.5L4 7.5L10 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                    </svg>
-                                  </div>
-                                )}
-                              </button>
+                              </div>
                             );
                           })}
                         </div>
@@ -2774,54 +2782,30 @@ export default function Wizard() {
                           );
                         })()}
 
-                        {/* Load more / all loaded button */}
-                        {altLineupQueue.length > 0 ? (
-                          <button
-                            type="button"
-                            onClick={loadMoreDesigns}
-                            disabled={loadingMoreDesigns}
-                            style={{
-                              marginTop: 10, width: '100%', padding: '9px 14px',
-                              background: t.isDark ? 'rgba(124,92,252,0.10)' : 'rgba(124,92,252,0.06)',
-                              border: `1px dashed ${t.isDark ? 'rgba(124,92,252,0.35)' : 'rgba(124,92,252,0.3)'}`,
-                              borderRadius: 10, cursor: loadingMoreDesigns ? 'default' : 'pointer',
-                              color: t.primary, fontSize: 12, fontWeight: 700,
-                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-                              transition: 'opacity 150ms',
-                              opacity: loadingMoreDesigns ? 0.6 : 1,
-                            }}
-                          >
-                            {loadingMoreDesigns ? (
-                              <>
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 0.8s linear infinite' }}>
-                                  <path d="M21 12a9 9 0 11-6.219-8.56"/>
-                                </svg>
-                                Loading designs…
-                              </>
-                            ) : (
-                              <>
-                                <IpRefresh size={13} color={t.primary} />
-                                Load {Math.min(altLineupQueue.length, 3)} more designs
-                              </>
-                            )}
-                          </button>
-                        ) : styleKeys.length > 3 ? (
+                        {/* Single "See all card styles" CTA — always visible when cards exist */}
+                        {(styleKeys.length > 0) && (
                           <button
                             type="button"
                             onClick={() => setMoreDesignsModal(true)}
                             style={{
-                              marginTop: 10, width: '100%', padding: '9px 14px',
+                              marginTop: 10, width: '100%', padding: '10px 14px',
                               background: t.isDark ? 'rgba(124,92,252,0.10)' : 'rgba(124,92,252,0.06)',
-                              border: `1px solid ${t.isDark ? 'rgba(124,92,252,0.35)' : 'rgba(124,92,252,0.3)'}`,
+                              border: `1px solid ${t.isDark ? 'rgba(124,92,252,0.35)' : 'rgba(124,92,252,0.25)'}`,
                               borderRadius: 10, cursor: 'pointer',
                               color: t.primary, fontSize: 12, fontWeight: 700,
                               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                              transition: 'background 150ms',
                             }}
                           >
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-                            Browse all {styleKeys.length} designs
+                            See all card styles
+                            {altLineupQueue.length > 0 && (
+                              <span style={{ fontSize: 10, fontWeight: 600, opacity: 0.7, marginLeft: 2 }}>
+                                · {styleKeys.length + altLineupQueue.length * 3} total
+                              </span>
+                            )}
                           </button>
-                        ) : null}
+                        )}
                       </div>
                     );
                   })()
@@ -3796,60 +3780,123 @@ export default function Wizard() {
 
       {/* ── More Designs Gallery Modal ── */}
       {moreDesignsModal && results && (() => {
-        const ALL_KEYS = ['A','B','C','D','E','F','G','H','I'];
+        const ALL_KEYS = ['A','B','C','D','E','F','G','H','I','J','K','L'];
         const allUrls = { ...results.photoCardUrls, ...extraPhotoCardUrls };
         const availableKeys = ALL_KEYS.filter(k => allUrls[k]);
-        const fallbackGallery = { A:'Style 1',B:'Style 2',C:'Style 3',D:'Style 4',E:'Style 5',F:'Style 6',G:'Style 7',H:'Style 8',I:'Style 9' };
+        const skeletonCount = loadingMoreDesigns ? 3 : 0;
+        const fallbackGallery = { A:'Style 1',B:'Style 2',C:'Style 3',D:'Style 4',E:'Style 5',F:'Style 6',G:'Style 7',H:'Style 8',I:'Style 9',J:'Style 10',K:'Style 11',L:'Style 12' };
         const galleryNames = ALL_KEYS.reduce((acc, k) => { acc[k] = cardTemplateNames[k] || fallbackGallery[k]; return acc; }, {});
         const galleryCats  = ALL_KEYS.reduce((acc, k) => { acc[k] = cardTemplateCategories[k] || ''; return acc; }, {});
+        const selectedName = galleryNames[selectedCardStyle] || 'Your design';
+        const totalDesigns = availableKeys.length + (altLineupQueue.length * 3);
         return (
           <div
             onClick={() => setMoreDesignsModal(null)}
-            style={{ position: 'fixed', inset: 0, zIndex: 10002, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+            style={{ position: 'fixed', inset: 0, zIndex: 10002, background: 'rgba(0,0,0,0.80)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
           >
             <div
               onClick={e => e.stopPropagation()}
-              style={{ background: t.card, borderRadius: 20, padding: '28px 24px', width: '100%', maxWidth: availableKeys.length > 3 ? 900 : 720, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 80px rgba(0,0,0,0.5)', border: `1px solid ${t.border}` }}
+              style={{ background: t.card, borderRadius: 24, width: '100%', maxWidth: 960, maxHeight: '92vh', display: 'flex', flexDirection: 'column', boxShadow: '0 32px 100px rgba(0,0,0,0.55)', border: `1px solid ${t.border}`, overflow: 'hidden' }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              {/* Header */}
+              <div style={{ padding: '22px 26px 18px', borderBottom: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
                 <div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: t.text }}>Pick a design</div>
-                  <div style={{ fontSize: 13, color: t.textMuted, marginTop: 3 }}>{availableKeys.length} unique designs — all using your brand colors, zero extra credits</div>
+                  <div style={{ fontSize: 19, fontWeight: 800, color: t.text, letterSpacing: '-0.02em' }}>Pick a card style</div>
+                  <div style={{ fontSize: 13, color: t.textMuted, marginTop: 3 }}>
+                    {loadingMoreDesigns
+                      ? `Loading more styles…`
+                      : `${availableKeys.length} styles — all use your brand colors, zero extra credits`}
+                  </div>
                 </div>
-                <button onClick={() => setMoreDesignsModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8, color: t.textMuted, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                </button>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
-                {availableKeys.map(key => {
-                  const url = allUrls[key];
-                  const isActive = selectedCardStyle === key;
-                  const tName = galleryNames[key];
-                  const tCat  = galleryCats[key];
-                  return (
-                    <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      <div style={{ borderRadius: 12, overflow: 'hidden', border: `2px solid ${isActive ? '#7C5CFC' : t.border}`, aspectRatio: '4/5', background: t.input, position: 'relative' }}>
-                        <img src={url} alt={tName} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                        {tCat && (
-                          <div style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(0,0,0,0.68)', backdropFilter: 'blur(6px)', borderRadius: 20, padding: '3px 9px', fontSize: 9, fontWeight: 700, color: '#fff', letterSpacing: '0.06em' }}>
-                            {tCat.toUpperCase()}
-                          </div>
-                        )}
-                        {isActive && (
-                          <div style={{ position: 'absolute', top: 8, right: 8, background: '#7C5CFC', borderRadius: 20, padding: '3px 9px', fontSize: 11, fontWeight: 700, color: '#fff' }}>Active</div>
-                        )}
-                      </div>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: t.text, textAlign: 'center', paddingX: 2 }}>{tName}</div>
-                      <button
-                        onClick={() => selectMoreDesign(key)}
-                        style={{ width: '100%', padding: '10px 0', background: isActive ? 'rgba(124,92,252,0.12)' : 'linear-gradient(135deg, #7C5CFC, #5B3FF0)', border: isActive ? '1.5px solid #7C5CFC' : 'none', borderRadius: 10, color: isActive ? '#7C5CFC' : '#fff', fontSize: 13, fontWeight: 700, cursor: isActive ? 'default' : 'pointer', letterSpacing: '0.01em' }}
-                        disabled={isActive}
-                      >
-                        {isActive ? '✓ Selected' : `Use ${tName}`}
-                      </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {selectedCardStyle && availableKeys.includes(selectedCardStyle) && (
+                    <div style={{ fontSize: 12, fontWeight: 700, color: t.primary, background: `${t.primary}15`, border: `1px solid ${t.primary}30`, borderRadius: 20, padding: '4px 12px' }}>
+                      {selectedName} selected
                     </div>
-                  );
-                })}
+                  )}
+                  <button onClick={() => setMoreDesignsModal(null)} style={{ background: t.isDark ? 'rgba(255,255,255,0.08)' : t.input, border: `1px solid ${t.border}`, cursor: 'pointer', padding: '7px', borderRadius: 10, color: t.textMuted, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Scrollable grid */}
+              <div style={{ overflowY: 'auto', padding: '20px 26px 24px', flexGrow: 1 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+
+                  {/* Loaded design cards */}
+                  {availableKeys.map(key => {
+                    const url = allUrls[key];
+                    const isActive = selectedCardStyle === key;
+                    const tName = galleryNames[key];
+                    const tCat  = galleryCats[key];
+                    return (
+                      <div
+                        key={key}
+                        onClick={() => !isActive && selectMoreDesign(key)}
+                        style={{
+                          display: 'flex', flexDirection: 'column', gap: 0,
+                          borderRadius: 16, overflow: 'hidden',
+                          border: `2px solid ${isActive ? t.primary : t.border}`,
+                          boxShadow: isActive ? `0 0 0 3px ${t.primary}25, 0 8px 24px rgba(0,0,0,0.18)` : '0 2px 10px rgba(0,0,0,0.10)',
+                          cursor: isActive ? 'default' : 'pointer',
+                          transition: 'all 180ms cubic-bezier(0.34,1.56,0.64,1)',
+                          background: t.input,
+                          transform: isActive ? 'scale(1.02)' : 'scale(1)',
+                        }}
+                      >
+                        {/* Card image */}
+                        <div style={{ position: 'relative', aspectRatio: '4/5' }}>
+                          <img src={url} alt={tName} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                          {tCat && (
+                            <div style={{ position: 'absolute', top: 10, left: 10, background: 'rgba(0,0,0,0.70)', backdropFilter: 'blur(8px)', borderRadius: 20, padding: '3px 10px', fontSize: 9, fontWeight: 700, color: '#fff', letterSpacing: '0.07em', textTransform: 'uppercase' }}>
+                              {tCat}
+                            </div>
+                          )}
+                          {isActive && (
+                            <div style={{ position: 'absolute', inset: 0, background: `${t.primary}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <div style={{ background: t.primary, borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 16px rgba(0,0,0,0.3)' }}>
+                                <svg width="16" height="13" viewBox="0 0 16 13" fill="none"><path d="M1.5 6.5L5.5 10.5L14.5 1.5" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Card footer */}
+                        <div style={{ padding: '10px 12px 12px', background: t.card, borderTop: `1px solid ${t.border}` }}>
+                          <div style={{ fontSize: 13, fontWeight: 800, color: t.text, marginBottom: 6, letterSpacing: '-0.01em' }}>{tName}</div>
+                          <div style={{
+                            width: '100%', padding: '8px 0', textAlign: 'center',
+                            background: isActive ? `${t.primary}15` : t.primary,
+                            border: isActive ? `1.5px solid ${t.primary}` : 'none',
+                            borderRadius: 8, color: isActive ? t.primary : '#fff',
+                            fontSize: 12, fontWeight: 700,
+                          }}>
+                            {isActive ? '✓ Currently using' : 'Use this style'}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Skeleton cards while loading */}
+                  {Array.from({ length: skeletonCount }).map((_, i) => (
+                    <div key={`skel-${i}`} style={{ borderRadius: 16, overflow: 'hidden', border: `1px solid ${t.border}`, background: t.input }}>
+                      <div style={{ aspectRatio: '4/5', background: t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', animation: 'pulse 1.4s ease-in-out infinite' }} />
+                      <div style={{ padding: '10px 12px 12px', background: t.card, borderTop: `1px solid ${t.border}` }}>
+                        <div style={{ height: 14, width: '65%', borderRadius: 6, background: t.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', marginBottom: 8 }} />
+                        <div style={{ height: 30, borderRadius: 8, background: t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* "All loaded" notice */}
+                {!loadingMoreDesigns && altLineupQueue.length === 0 && availableKeys.length > 0 && (
+                  <div style={{ textAlign: 'center', marginTop: 20, fontSize: 12, color: t.textMuted }}>
+                    All {availableKeys.length} styles shown — tap any to switch, zero extra credits
+                  </div>
+                )}
               </div>
             </div>
           </div>
