@@ -1759,6 +1759,19 @@ Return ONLY valid JSON (no markdown, no backticks):
                 }
               } catch (resizerErr) {
                 console.warn('[Wizard] ImageResizer failed — using original URL:', resizerErr.message);
+                // Pixabay ToS prohibits permanent hotlinking — if both PhotoCard and ImageResizer
+                // failed and the image came from a stock provider, upload the raw buffer to Cloudinary
+                // so we never store a stock CDN URL permanently.
+                if (mediaSource !== 'nanobanana' && mediaSource !== 'customer_upload' && ImageResizer && mediaUrl) {
+                  try {
+                    const _buf = await ImageResizer.fetchImageAsBuffer(mediaUrl);
+                    const _cid = session.customerId;
+                    const _uploaded = await ImageResizer.uploadToCloudinary(_buf, `itsposting/${_cid}/stock-${Date.now()}`);
+                    if (_uploaded) mediaUrl = _uploaded;
+                  } catch (_uploadErr) {
+                    console.warn('[Wizard] Stock image Cloudinary fallback failed:', _uploadErr.message);
+                  }
+                }
               }
             }
 

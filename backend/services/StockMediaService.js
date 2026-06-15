@@ -8,7 +8,7 @@
  * Zero code changes needed to add/remove a provider — just set/unset the env var.
  *
  * Providers supported:
- *   PIXABAY_API_KEY              → Pixabay (free, no attribution, 5,000/hr)
+ *   PIXABAY_API_KEY              → Pixabay (free, no attribution, 100 req/min; cache 24h per ToS)
  *   PEXELS_API_KEY               → Pexels (free, no attribution, 200/hr)
  *   UNSPLASH_ACCESS_KEY          → Unsplash (free images only, 5,000/hr with production approval)
  *   FREEPIK_API_KEY              → Freepik Business API (paid tier, images only)
@@ -24,7 +24,8 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // ── Tiny LRU Cache (no external dep) ─────────────────────────────────────────
 class LRUCache {
-  constructor(maxSize = 500, ttlMs = 6 * 60 * 60 * 1000) {
+  // Pixabay ToS requires caching for 24 hours minimum
+  constructor(maxSize = 500, ttlMs = 24 * 60 * 60 * 1000) {
     this.maxSize = maxSize;
     this.ttlMs = ttlMs;
     this.cache = new Map();
@@ -94,7 +95,7 @@ class PixabayProvider {
     if (mediaType === 'video') {
       return data.hits.map(h => ({
         url: h.videos?.medium?.url || h.videos?.small?.url || null,
-        thumbUrl: h.picture_id ? `https://i.vimeocdn.com/video/${h.picture_id}_295x166.jpg` : null,
+        thumbUrl: h.videos?.medium?.thumbnail || h.videos?.small?.thumbnail || null,
         width: h.videos?.medium?.width || 1280,
         height: h.videos?.medium?.height || 720,
         tags: (h.tags || '').split(',').map(t => t.trim().toLowerCase()).filter(Boolean),
