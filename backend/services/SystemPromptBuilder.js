@@ -872,7 +872,7 @@ PROFESSIONAL DESIGN PRINCIPLES (from Canva/Figma/Envato template DNA — apply t
 Every content type has its own visual language. Canva/Envato templates that work never mix these up.
 Write cardOverlay fields to match the blueprint for this specific content type:
 
-JOB_FINISHED / BEFORE_AFTER → Template A (Left Fade Pro):
+JOB_FINISHED → Template A (Left Fade Pro):
   The reveal is everything. Show the transformation, not the sale.
   → headline: The outcome, specific — "Drain Cleared in 45 Min" / "Roof Fixed, Leak Gone" / "Lawn Transformed Today"
   → eyebrow: "JUST COMPLETED · [CITY]" or "[BUSINESS NAME] · [MONTH]"
@@ -880,8 +880,17 @@ JOB_FINISHED / BEFORE_AFTER → Template A (Left Fade Pro):
   → cta: "Call for Same-Day Service" or "Get Your Free Quote"
   → badge: "LICENSED & INSURED" or "AVAILABLE 24/7" or "SAME-DAY SERVICE"
   → services: Specific work actually done — ["PEX Repiping", "Leak Detection", "Full Replacement"] (not generic service names)
-  IF the post describes a visible before/after transformation (old vs new, broken vs fixed, dirty vs clean):
-    → imagePrompt MUST be a SPLIT-CANVAS: left 50% = the problem state (dark, damaged, before), right 50% = the result (clean, repaired, after), separated by a thin diagonal slash line. Example: "Split-canvas image: left half shows corroded, leaking pipe joint — rusty and dark; right half shows gleaming new copper fittings, bright and clean. Diagonal divider line between halves. Professional trade photography, dramatic side lighting." If there is NO clear before/after transformation (e.g. a general job completion post), write a standard single-scene imagePrompt instead.
+  → imagePrompt: A single-scene photo of the completed work — the finished result, clean and professional. Show the technician or the repaired/installed area. NEVER use a split-canvas layout.
+
+BEFORE_AFTER → Template A (Left Fade Pro):
+  The contrast is what grabs attention — show the ugly before AND the clean after.
+  → headline: The transformation — "From Rusted Nightmare to Brand New" / "Before vs After — See the Difference"
+  → eyebrow: "BEFORE & AFTER · [CITY]" or "[BUSINESS NAME] TRANSFORMATION"
+  → subtext: One sentence — what was done and why it matters.
+  → cta: "Book Your Transformation" or "Get a Free Quote"
+  → badge: "LICENSED & INSURED" or "SAME-DAY SERVICE"
+  → services: The specific work done — ["Old Pipe Removed", "PEX Installed", "System Tested"]
+  → imagePrompt: SPLIT-CANVAS image — left 50% shows the problem state (dark, damaged, before), right 50% shows the result (clean, repaired, after), separated by a thin diagonal slash line. Example: "Split-canvas image: left half shows corroded, leaking pipe joint — rusty and dark; right half shows gleaming new copper fittings, bright and clean. Diagonal divider line between halves. Professional trade photography, dramatic side lighting."
 
 GOT_REVIEW → Template E (Social Proof):
   The customer's words are more powerful than yours. Put them front and center.
