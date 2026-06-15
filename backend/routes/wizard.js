@@ -386,7 +386,7 @@ function validateMedia(url, type = 'image') {
 
 const wizardSessions = new Map();
 
-async function getSession(id) {
+async function getSession(pool, id) {
   if (wizardSessions.has(id)) return wizardSessions.get(id);
   try {
     const r = await pool.query(
@@ -403,7 +403,7 @@ async function getSession(id) {
   return null;
 }
 
-async function saveSession(id, data) {
+async function saveSession(pool, id, data) {
   wizardSessions.set(id, data);
   const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
   try {
@@ -418,7 +418,7 @@ async function saveSession(id, data) {
   }
 }
 
-async function deleteSession(id) {
+async function deleteSession(pool, id) {
   wizardSessions.delete(id);
   try {
     await pool.query(`DELETE FROM wizard_sessions WHERE id = $1`, [id]);
@@ -790,7 +790,7 @@ module.exports = (pool) => {
         createdAt: Date.now(),
       };
 
-      await saveSession(wizardId, session);
+      await saveSession(pool, wizardId, session);
 
       res.json({
         wizardId,
@@ -817,7 +817,7 @@ module.exports = (pool) => {
       if (!wizardId) {
         return res.status(404).json({ error: 'Wizard session not found or expired. Please start again.' });
       }
-      const session = await getSession(wizardId);
+      const session = await getSession(pool, wizardId);
       if (!session) {
         return res.status(404).json({ error: 'Wizard session not found or expired. Please start again.' });
       }
@@ -829,7 +829,7 @@ module.exports = (pool) => {
       // Meta steps — store in session but don't advance step counter
       if (stepId === 'video_type' || stepId === 'selected_format' || stepId === 'music_mood' || stepId === 'video_style') {
         session.answers[stepId] = answers;
-        await saveSession(wizardId, session);
+        await saveSession(pool, wizardId, session);
         return res.json({
           currentStep: session.currentStep,
           totalSteps: session.steps.length,
@@ -848,7 +848,7 @@ module.exports = (pool) => {
       session.currentStep += 1;
 
       if (session.currentStep >= session.steps.length) {
-        await saveSession(wizardId, session);
+        await saveSession(pool, wizardId, session);
         return res.json({
           complete: true,
           wizardId,
@@ -856,7 +856,7 @@ module.exports = (pool) => {
         });
       }
 
-      await saveSession(wizardId, session);
+      await saveSession(pool, wizardId, session);
       res.json({
         currentStep: session.currentStep,
         totalSteps: session.steps.length,
@@ -897,7 +897,7 @@ module.exports = (pool) => {
         return res.status(404).json({ error: 'Wizard session not found or expired. Please start again.' });
       }
       debugStage = 'session';
-      const session = await getSession(wizardId);
+      const session = await getSession(pool, wizardId);
       if (!session) {
         return res.status(404).json({ error: 'Wizard session not found or expired. Please start again.' });
       }
@@ -2153,7 +2153,7 @@ Return ONLY valid JSON (no markdown, no backticks):
         });
       }
 
-      await deleteSession(wizardId);
+      await deleteSession(pool, wizardId);
 
       res.json({
         success: true,
@@ -3061,7 +3061,7 @@ Return ONLY valid JSON (no markdown, no backticks):
     try {
       const { wizardId } = req.params;
 
-      const session = await getSession(wizardId);
+      const session = await getSession(pool, wizardId);
       if (!session) {
         return res.status(404).json({ error: 'Session not found or expired' });
       }
