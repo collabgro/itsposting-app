@@ -935,6 +935,8 @@ Shoot as if for a Canva Pro template — intentional negative space, strong subj
 natural authentic feel (tradesperson actually working, not posed). Rich contrast so the subject
 reads clearly through a color overlay. Include specific composition instruction for the content type's template.
 MANDATORY: The imagePrompt must explicitly state "no text, logos, business names, or brand marks on clothing, uniforms, vehicles, or equipment — plain workwear only." This is non-negotiable — the image generator will hallucinate fictional company names otherwise.
+
+SPLIT-CANVAS RULE: NEVER write a split-canvas or before/after divided image unless the content theme is explicitly "before_after". For ALL other themes (job_finished, share_tip, custom, seasonal, got_review, promotion, faq, team_spotlight, community) write a SINGLE-SCENE image. A user posting about pipe repair, roof work, or any trade service does NOT want a split-canvas — they want a single professional photo of the job or tradesperson.
 ` : '';
 
     return `=== OUTPUT FORMAT (CRITICAL — ALWAYS FOLLOW THIS EXACTLY) ===
