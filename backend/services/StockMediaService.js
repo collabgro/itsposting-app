@@ -310,9 +310,10 @@ class MagnificProvider {
 // licenses the winner via POST /v2/images/licenses and fetches the actual download URL.
 // Free Images API product: 500 licensed images/month at no cost.
 class ShutterstockProvider {
-  constructor(clientId, clientSecret) {
+  constructor(clientId, clientSecret, subscriptionId = null) {
     this.clientId = clientId;
     this.clientSecret = clientSecret;
+    this.subscriptionId = subscriptionId;
     this.name = 'shutterstock';
     this._token = null;
     this._tokenExpiry = 0;
@@ -339,9 +340,10 @@ class ShutterstockProvider {
     if (!candidate._sstockId) return candidate;
     try {
       const token = await this._getToken();
+      const qs = this.subscriptionId ? `?subscription_id=${this.subscriptionId}` : '';
       const endpoint = candidate.isVideo
-        ? 'https://api.shutterstock.com/v2/videos/licenses'
-        : 'https://api.shutterstock.com/v2/images/licenses';
+        ? `https://api.shutterstock.com/v2/videos/licenses${qs}`
+        : `https://api.shutterstock.com/v2/images/licenses${qs}`;
       const body = candidate.isVideo
         ? { videos: [{ video_id: candidate._sstockId }] }
         : { images: [{ image_id: candidate._sstockId }] };
@@ -456,7 +458,8 @@ class StockMediaService {
     if (process.env.SHUTTERSTOCK_API_KEY && process.env.SHUTTERSTOCK_API_SECRET)
       this.providers.push(new ShutterstockProvider(
         process.env.SHUTTERSTOCK_API_KEY,
-        process.env.SHUTTERSTOCK_API_SECRET
+        process.env.SHUTTERSTOCK_API_SECRET,
+        process.env.SHUTTERSTOCK_SUBSCRIPTION_ID || null
       ));
     if (process.env.STORYBLOCKS_PUBLIC_KEY && process.env.STORYBLOCKS_PRIVATE_KEY)
       this.providers.push(new StoryblocksProvider(
