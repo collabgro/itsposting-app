@@ -251,9 +251,6 @@ export const contentAPI = {
   getCredits: () => api.get('/api/content/credits'),
   getCreditHistory: () => api.get('/api/content/credits/history'),
   getProviders: () => api.get('/api/content/providers'),
-  generateVariations: (data) => api.post('/api/content/generate-variations', data),
-  getVariations: (postId) => api.get(`/api/content/variations/${postId}`),
-  chooseVariation: (postId, label) => api.post(`/api/content/variations/${postId}/choose`, { label }),
 };
 
 export const suggestionsAPI = {

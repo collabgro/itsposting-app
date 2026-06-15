@@ -299,7 +299,6 @@ console.log('══════════════════════�
     `ALTER TABLE studio_creations ADD COLUMN IF NOT EXISTS video_json JSONB`,
     `ALTER TABLE studio_creations ADD COLUMN IF NOT EXISTS render_status VARCHAR(20) DEFAULT 'none'`,
     `ALTER TABLE studio_creations ADD COLUMN IF NOT EXISTS duration_seconds NUMERIC(8,2)`,
-    `ALTER TABLE studio_creations ADD COLUMN IF NOT EXISTS template_id INTEGER REFERENCES canvas_templates(id) ON DELETE SET NULL`,
     `ALTER TABLE studio_creations ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()`,
     `ALTER TABLE studio_creations ADD COLUMN IF NOT EXISTS canvas_width INTEGER DEFAULT 1080`,
     `ALTER TABLE studio_creations ADD COLUMN IF NOT EXISTS canvas_height INTEGER DEFAULT 1350`,
@@ -320,6 +319,9 @@ console.log('══════════════════════�
       created_at TIMESTAMP DEFAULT NOW()
     )`,
     `CREATE INDEX IF NOT EXISTS idx_crawl_jobs_customer ON crawl_jobs(customer_id, created_at DESC)`,
+    `ALTER TABLE crawl_jobs ADD COLUMN IF NOT EXISTS auto_refresh BOOLEAN DEFAULT FALSE`,
+    `ALTER TABLE crawl_jobs ADD COLUMN IF NOT EXISTS refresh_interval VARCHAR(20)`,
+    `ALTER TABLE crawl_jobs ADD COLUMN IF NOT EXISTS next_refresh_at TIMESTAMP`,
     // AI Receptionist — per-customer settings
     `CREATE TABLE IF NOT EXISTS receptionist_config (
       id SERIAL PRIMARY KEY,
@@ -337,6 +339,36 @@ console.log('══════════════════════�
       created_at TIMESTAMP DEFAULT NOW(),
       updated_at TIMESTAMP DEFAULT NOW()
     )`,
+    // Contacts — core CRM table (must be created in startup so live routes don't crash on fresh deploy)
+    `CREATE TABLE IF NOT EXISTS contacts (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER REFERENCES customers(id) ON DELETE CASCADE,
+      name VARCHAR(255),
+      email VARCHAR(255),
+      phone VARCHAR(50),
+      facebook_psid VARCHAR(255),
+      instagram_igsid VARCHAR(255),
+      profile_pic_url TEXT,
+      source VARCHAR(50) DEFAULT 'manual',
+      source_platform VARCHAR(50),
+      notes TEXT,
+      tags JSONB DEFAULT '[]'::jsonb,
+      lead_status VARCHAR(50) DEFAULT 'new',
+      estimated_job_value DECIMAL(10,2),
+      job_type VARCHAR(100),
+      first_contact_at TIMESTAMP DEFAULT NOW(),
+      last_contact_at TIMESTAMP,
+      total_conversations INTEGER DEFAULT 0,
+      is_customer BOOLEAN DEFAULT false,
+      is_blocked BOOLEAN DEFAULT false,
+      do_not_contact BOOLEAN DEFAULT false,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_contacts_customer ON contacts(customer_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_contacts_lead_status ON contacts(customer_id, lead_status)`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS uq_contacts_facebook ON contacts(customer_id, facebook_psid) WHERE facebook_psid IS NOT NULL`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS uq_contacts_instagram ON contacts(customer_id, instagram_igsid) WHERE instagram_igsid IS NOT NULL`,
     // AI Receptionist — extend contacts for receptionist pipeline
     `ALTER TABLE contacts ADD COLUMN IF NOT EXISTS receptionist_stage VARCHAR(30)`,
     `ALTER TABLE contacts ADD COLUMN IF NOT EXISTS appointment_at TIMESTAMP`,
@@ -614,6 +646,8 @@ console.log('══════════════════════�
       created_at     TIMESTAMP DEFAULT NOW()
     )`,
     `CREATE INDEX IF NOT EXISTS idx_canvas_templates_industry ON canvas_templates(industry, is_active)`,
+    // Now safe to reference canvas_templates — add FK column to studio_creations
+    `ALTER TABLE studio_creations ADD COLUMN IF NOT EXISTS template_id INTEGER REFERENCES canvas_templates(id) ON DELETE SET NULL`,
     // A/B/C caption variations per generated post
     `CREATE TABLE IF NOT EXISTS post_variations (
       id               SERIAL PRIMARY KEY,
@@ -645,63 +679,6 @@ console.log('══════════════════════�
     `CREATE INDEX IF NOT EXISTS idx_post_templates_customer ON post_templates(customer_id)`,
     // Saved hashtag sets per customer: [{id, name, tags[], usage_count}]
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS hashtag_sets JSONB DEFAULT '[]'::jsonb`,
-    // PostCore Brain — LLM training data collection
-    `CREATE TABLE IF NOT EXISTS post_training_data (
-      id                SERIAL PRIMARY KEY,
-      post_id           INTEGER REFERENCES posts(id) ON DELETE CASCADE,
-      input_payload     JSONB NOT NULL,
-      output_payload    JSONB NOT NULL,
-      variation_selected CHAR(1),
-      was_edited        BOOLEAN DEFAULT FALSE,
-      edit_distance     INTEGER,
-      post_reach        INTEGER,
-      post_engagement   INTEGER,
-      quality_score     NUMERIC(3,1),
-      model_used        VARCHAR(50) DEFAULT 'claude-sonnet-4-6',
-      created_at        TIMESTAMP DEFAULT NOW()
-    )`,
-    `CREATE INDEX IF NOT EXISTS idx_training_data_model ON post_training_data(model_used, created_at DESC)`,
-    // PostCore Brain — model version registry
-    `CREATE TABLE IF NOT EXISTS llm_model_versions (
-      id                  SERIAL PRIMARY KEY,
-      version_name        VARCHAR(100) NOT NULL,
-      base_model          VARCHAR(100) NOT NULL,
-      lora_weights_url    TEXT,
-      replicate_model_id  TEXT,
-      training_examples   INTEGER DEFAULT 0,
-      eval_bleu           NUMERIC(4,3),
-      eval_human_score    NUMERIC(3,1),
-      status              VARCHAR(30) DEFAULT 'training',
-      traffic_pct         INTEGER DEFAULT 0,
-      trained_at          TIMESTAMP,
-      promoted_at         TIMESTAMP,
-      created_at          TIMESTAMP DEFAULT NOW()
-    )`,
-    // PostCore Brain — A/B experiment log
-    `CREATE TABLE IF NOT EXISTS llm_ab_experiments (
-      id                    SERIAL PRIMARY KEY,
-      model_version_id      INTEGER REFERENCES llm_model_versions(id),
-      started_at            TIMESTAMP DEFAULT NOW(),
-      ended_at              TIMESTAMP,
-      traffic_pct           INTEGER DEFAULT 0,
-      calls_total           INTEGER DEFAULT 0,
-      user_selection_rate   NUMERIC(4,3),
-      edit_rate             NUMERIC(4,3),
-      avg_reach             NUMERIC(10,2),
-      result                VARCHAR(20),
-      notes                 TEXT
-    )`,
-    // PostCore Brain — human-curated gold examples
-    `CREATE TABLE IF NOT EXISTS llm_curated_examples (
-      id             SERIAL PRIMARY KEY,
-      industry       VARCHAR(50) NOT NULL,
-      content_type   VARCHAR(50) NOT NULL,
-      input_payload  JSONB NOT NULL,
-      ideal_output   JSONB NOT NULL,
-      quality_score  NUMERIC(3,1) NOT NULL,
-      annotated_by   VARCHAR(100),
-      created_at     TIMESTAMP DEFAULT NOW()
-    )`,
     // Content Calendar — strategic planning layer
     `CREATE TABLE IF NOT EXISTS content_calendar_plans (
       id              SERIAL PRIMARY KEY,
@@ -878,6 +855,11 @@ console.log('══════════════════════�
       annotated_by   VARCHAR(100),
       created_at     TIMESTAMP DEFAULT NOW()
     )`,
+    // Patch existing DBs that were created with the old (first-set) schema — add missing columns
+    `ALTER TABLE llm_model_versions ADD COLUMN IF NOT EXISTS modality VARCHAR(20) NOT NULL DEFAULT 'text'`,
+    `ALTER TABLE llm_model_versions ADD COLUMN IF NOT EXISTS weights_url TEXT`,
+    `ALTER TABLE llm_ab_experiments ADD COLUMN IF NOT EXISTS modality VARCHAR(20) NOT NULL DEFAULT 'text'`,
+    `ALTER TABLE llm_ab_experiments ADD COLUMN IF NOT EXISTS keep_rate NUMERIC(4,3)`,
     // Web Push Notifications — PWA native alerts
     `CREATE TABLE IF NOT EXISTS push_subscriptions (
       id          SERIAL PRIMARY KEY,
@@ -1008,19 +990,6 @@ console.log('══════════════════════�
     `CREATE INDEX IF NOT EXISTS idx_customers_id_status
        ON customers(id) WHERE status = 'active'`,
 
-    // PostCore Brain — image metadata columns for rich Vision-extracted attributes
-    `ALTER TABLE image_training_data ADD COLUMN IF NOT EXISTS metadata JSONB`,
-    `ALTER TABLE image_training_data ADD COLUMN IF NOT EXISTS has_person BOOLEAN`,
-    `ALTER TABLE image_training_data ADD COLUMN IF NOT EXISTS has_text_overlay BOOLEAN`,
-    `ALTER TABLE image_training_data ADD COLUMN IF NOT EXISTS is_branded BOOLEAN`,
-    `ALTER TABLE image_training_data ADD COLUMN IF NOT EXISTS composition_type VARCHAR(50)`,
-    `ALTER TABLE image_training_data ADD COLUMN IF NOT EXISTS lighting_type VARCHAR(50)`,
-    `ALTER TABLE image_training_data ADD COLUMN IF NOT EXISTS tags TEXT[]`,
-    `CREATE INDEX IF NOT EXISTS idx_image_training_has_person
-       ON image_training_data(has_person, industry) WHERE has_person = true`,
-    `CREATE INDEX IF NOT EXISTS idx_image_training_quality_industry
-       ON image_training_data(industry, quality_score DESC NULLS LAST) WHERE quality_score >= 4`,
-
     // ── PostCore Brain Phase 2 — image + video training data collection ──
     // Captures every image generation event so PostCore Brain can learn
     // which prompts produce images customers keep vs regenerate.
@@ -1050,6 +1019,18 @@ console.log('══════════════════════�
     `CREATE INDEX IF NOT EXISTS idx_image_training_kept
        ON image_training_data(was_kept, provider, created_at DESC)
        WHERE was_kept IS NOT NULL`,
+    // PostCore Brain — image metadata columns (must come after CREATE TABLE above)
+    `ALTER TABLE image_training_data ADD COLUMN IF NOT EXISTS metadata JSONB`,
+    `ALTER TABLE image_training_data ADD COLUMN IF NOT EXISTS has_person BOOLEAN`,
+    `ALTER TABLE image_training_data ADD COLUMN IF NOT EXISTS has_text_overlay BOOLEAN`,
+    `ALTER TABLE image_training_data ADD COLUMN IF NOT EXISTS is_branded BOOLEAN`,
+    `ALTER TABLE image_training_data ADD COLUMN IF NOT EXISTS composition_type VARCHAR(50)`,
+    `ALTER TABLE image_training_data ADD COLUMN IF NOT EXISTS lighting_type VARCHAR(50)`,
+    `ALTER TABLE image_training_data ADD COLUMN IF NOT EXISTS tags TEXT[]`,
+    `CREATE INDEX IF NOT EXISTS idx_image_training_has_person
+       ON image_training_data(has_person, industry) WHERE has_person = true`,
+    `CREATE INDEX IF NOT EXISTS idx_image_training_quality_industry
+       ON image_training_data(industry, quality_score DESC NULLS LAST) WHERE quality_score >= 4`,
 
     // Captures every video generation event: which provider ran, script used,
     // key frame prompt, and whether the customer kept the result.
@@ -1176,9 +1157,6 @@ console.log('══════════════════════�
     )`,
     `CREATE INDEX IF NOT EXISTS idx_wpa_agency ON workspace_plan_assignments(agency_id)`,
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS agency_credit_markup DECIMAL(5,4) DEFAULT 0`,
-    // Agency client self-signup — public handle for branded signup URL
-    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS public_handle VARCHAR(50)`,
-    `CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_public_handle ON customers(public_handle) WHERE public_handle IS NOT NULL`,
     // Agency feature flags per plan
     `ALTER TABLE agency_plans ADD COLUMN IF NOT EXISTS feature_flags JSONB DEFAULT '{"wizard":true,"quick_post":true,"calendar":true,"analytics":true,"geo_audit":false,"inbox":false,"competitor_intel":false,"templates":true,"media_library":true,"api_keys":false}'`,
     // ── Login OTP — email-based second factor ──

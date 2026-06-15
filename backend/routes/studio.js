@@ -1234,7 +1234,7 @@ Rules:
   // ── BRAND KITS ────────────────────────────────────────────────────────────
 
   // GET /api/studio/brand-kits — list all kits; auto-seeds from customer profile on first call
-  router.get('/brand-kits', async (req, res) => {
+  router.get('/brand-kits', authenticate, async (req, res) => {
     try {
       const { rows } = await pool.query(
         'SELECT * FROM brand_kits WHERE customer_id = $1 ORDER BY is_default DESC, created_at ASC',
@@ -1272,7 +1272,7 @@ Rules:
   });
 
   // POST /api/studio/brand-kits — create a new kit
-  router.post('/brand-kits', async (req, res) => {
+  router.post('/brand-kits', authenticate, async (req, res) => {
     try {
       const { name = 'New Kit' } = req.body;
       // Enforce plan limits: Trial/Starter = 1, Pro = 3, Premium = unlimited
@@ -1298,7 +1298,7 @@ Rules:
   });
 
   // PATCH /api/studio/brand-kits/:id — update name / logo / colors / fonts / is_default
-  router.patch('/brand-kits/:id', async (req, res) => {
+  router.patch('/brand-kits/:id', authenticate, async (req, res) => {
     try {
       const { name, logo_url, colors, fonts, is_default } = req.body;
       const kitId = parseInt(req.params.id);
@@ -1328,11 +1328,11 @@ Rules:
   });
 
   // DELETE /api/studio/brand-kits/:id
-  router.delete('/brand-kits/:id', async (req, res) => {
+  router.delete('/brand-kits/:id', authenticate, async (req, res) => {
     try {
       const kitId = parseInt(req.params.id);
       const { rows: [owned] } = await pool.query(
-        'SELECT id FROM brand_kits WHERE id = $1 AND customer_id = $2', [kitId, req.customerId]
+        'SELECT id, is_default FROM brand_kits WHERE id = $1 AND customer_id = $2', [kitId, req.customerId]
       );
       if (!owned) return res.status(404).json({ error: 'Kit not found' });
       const { rows: [{ count }] } = await pool.query(
@@ -1340,6 +1340,14 @@ Rules:
       );
       if (parseInt(count) <= 1) return res.status(400).json({ error: 'Cannot delete your only brand kit' });
       await pool.query('DELETE FROM brand_kits WHERE id = $1 AND customer_id = $2', [kitId, req.customerId]);
+      // If the deleted kit was the default, promote the oldest remaining kit to default
+      if (owned.is_default) {
+        await pool.query(
+          `UPDATE brand_kits SET is_default = true
+           WHERE id = (SELECT id FROM brand_kits WHERE customer_id = $1 ORDER BY created_at ASC LIMIT 1)`,
+          [req.customerId]
+        );
+      }
       res.json({ ok: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
