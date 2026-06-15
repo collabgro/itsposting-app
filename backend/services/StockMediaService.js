@@ -366,7 +366,7 @@ class StockMediaService {
         })]),
         new Promise((_, reject) => setTimeout(() => reject(new Error('Vision timeout')), 1500)),
       ]);
-      const raw = result[0]?.content?.[0]?.text || '{"score":0}';
+      const raw = result?.content?.[0]?.text || '{"score":0}';
       const { score } = JSON.parse(raw.replace(/```json|```/g, '').trim());
       console.log(`[StockMedia] Vision ${score}/100 from ${candidate.source} (need ${threshold})`);
       return typeof score === 'number' && score >= threshold;
