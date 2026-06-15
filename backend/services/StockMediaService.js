@@ -56,7 +56,7 @@ class LRUCache {
   }
 }
 
-// ── HTTP helper ───────────────────────────────────────────────────────────────
+// ── HTTP helpers ──────────────────────────────────────────────────────────────
 function fetchJSON(url, headers = {}, timeoutMs = 4000) {
   return new Promise((resolve, reject) => {
     const lib = url.startsWith('https') ? https : http;
@@ -74,6 +74,41 @@ function fetchJSON(url, headers = {}, timeoutMs = 4000) {
     });
     req.setTimeout(timeoutMs, () => { req.destroy(new Error('Request timeout')); });
     req.on('error', reject);
+  });
+}
+
+function postJSON(url, body, headers = {}, timeoutMs = 5000) {
+  return new Promise((resolve, reject) => {
+    const isForm = typeof body === 'string';
+    const bodyStr = isForm ? body : JSON.stringify(body);
+    const parsed = new URL(url);
+    const options = {
+      hostname: parsed.hostname,
+      port: 443,
+      path: parsed.pathname + (parsed.search || ''),
+      method: 'POST',
+      headers: {
+        'Content-Type': isForm ? 'application/x-www-form-urlencoded' : 'application/json',
+        'Content-Length': Buffer.byteLength(bodyStr),
+        ...headers,
+      },
+    };
+    const req = https.request(options, (res) => {
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        res.resume();
+        return reject(new Error(`HTTP ${res.statusCode}`));
+      }
+      let data = '';
+      res.on('data', chunk => { data += chunk; });
+      res.on('end', () => {
+        try { resolve(JSON.parse(data)); }
+        catch { reject(new Error('JSON parse error')); }
+      });
+    });
+    req.setTimeout(timeoutMs, () => { req.destroy(new Error('Request timeout')); });
+    req.on('error', reject);
+    req.write(bodyStr);
+    req.end();
   });
 }
 
@@ -271,19 +306,63 @@ class MagnificProvider {
 }
 
 // ── Provider: Shutterstock (paid subscription) ────────────────────────────────
+// Auth: OAuth2 client credentials — search returns watermarked previews; resolveUrl()
+// licenses the winner via POST /v2/images/licenses and fetches the actual download URL.
+// Free Images API product: 500 licensed images/month at no cost.
 class ShutterstockProvider {
-  constructor(apiKey, apiSecret) {
+  constructor(clientId, clientSecret) {
+    this.clientId = clientId;
+    this.clientSecret = clientSecret;
     this.name = 'shutterstock';
-    this.authHeader = `Basic ${Buffer.from(`${apiKey}:${apiSecret || ''}`).toString('base64')}`;
+    this._token = null;
+    this._tokenExpiry = 0;
   }
   supportsVideo() { return true; }
 
+  async _getToken() {
+    if (this._token && Date.now() < this._tokenExpiry - 60000) return this._token;
+    const basic = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
+    const data = await postJSON(
+      'https://api.shutterstock.com/v1/oauth/access_token',
+      'grant_type=client_credentials',
+      { Authorization: `Basic ${basic}` },
+      5000
+    );
+    this._token = data.access_token;
+    this._tokenExpiry = Date.now() + ((data.expires_in || 86400) * 1000);
+    return this._token;
+  }
+
+  // License the winning asset and return its download URL.
+  // Called after Vision validation, before returning the candidate to the wizard.
+  async resolveUrl(candidate) {
+    if (!candidate._sstockId) return candidate;
+    try {
+      const token = await this._getToken();
+      const endpoint = candidate.isVideo
+        ? 'https://api.shutterstock.com/v2/videos/licenses'
+        : 'https://api.shutterstock.com/v2/images/licenses';
+      const body = candidate.isVideo
+        ? { videos: [{ video_id: candidate._sstockId }] }
+        : { images: [{ image_id: candidate._sstockId }] };
+      const data = await postJSON(endpoint, body, { Authorization: `Bearer ${token}` }, 8000);
+      const dlUrl = data?.data?.[0]?.download?.url;
+      if (dlUrl) return { ...candidate, url: dlUrl };
+    } catch (err) {
+      console.warn('[StockMedia] Shutterstock license failed:', err.message);
+    }
+    return candidate; // fall through with preview if license call fails
+  }
+
   async search(keywords, mediaType = 'image', limit = 5) {
     const q = encodeURIComponent(keywords.slice(0, 3).join(' '));
+    const token = await this._getToken();
+    const auth = { Authorization: `Bearer ${token}` };
+
     if (mediaType === 'video') {
       const data = await fetchJSON(
-        `https://api.shutterstock.com/v2/videos/search?query=${q}&per_page=${limit}&sort=popular&orientation=vertical`,
-        { Authorization: this.authHeader }
+        `https://api.shutterstock.com/v2/videos/search?query=${q}&per_page=${limit}&sort=popular&view=full&orientation=vertical`,
+        auth
       );
       if (!data.data) return [];
       return data.data.map(v => ({
@@ -293,21 +372,26 @@ class ShutterstockProvider {
         tags: (v.description || '').toLowerCase().split(/\s+/).filter(Boolean),
         downloads: 10000,
         source: this.name, isVideo: true,
+        _sstockId: String(v.id),
+        _provider: this,
       })).filter(r => r.url);
     }
+
     const data = await fetchJSON(
-      `https://api.shutterstock.com/v2/images/search?query=${q}&per_page=${limit}&sort=popular&orientation=vertical&image_type=photo`,
-      { Authorization: this.authHeader }
+      `https://api.shutterstock.com/v2/images/search?query=${q}&per_page=${limit}&sort=popular&view=full&orientation=vertical&image_type=photo`,
+      auth
     );
     if (!data.data) return [];
     return data.data.map(img => ({
-      url: img.assets?.huge_jpg?.url || img.assets?.preview?.url || null,
+      url: img.assets?.preview?.url || null,   // watermarked preview — resolveUrl() licenses + replaces
       thumbUrl: img.assets?.preview?.url || null,
       width: img.assets?.huge_jpg?.width || 1080,
       height: img.assets?.huge_jpg?.height || 1350,
       tags: (img.description || '').toLowerCase().split(/\s+/).filter(Boolean),
       downloads: 10000,
       source: this.name, isVideo: false,
+      _sstockId: String(img.id),
+      _provider: this,
     })).filter(r => r.url);
   }
 }
@@ -369,10 +453,10 @@ class StockMediaService {
     const magnificKey = process.env.MAGNIFIC_API_KEY || process.env.FREEPIK_API_KEY;
     if (magnificKey)
       this.providers.push(new MagnificProvider(magnificKey));
-    if (process.env.SHUTTERSTOCK_API_KEY)
+    if (process.env.SHUTTERSTOCK_API_KEY && process.env.SHUTTERSTOCK_API_SECRET)
       this.providers.push(new ShutterstockProvider(
         process.env.SHUTTERSTOCK_API_KEY,
-        process.env.SHUTTERSTOCK_API_SECRET || ''
+        process.env.SHUTTERSTOCK_API_SECRET
       ));
     if (process.env.STORYBLOCKS_PUBLIC_KEY && process.env.STORYBLOCKS_PRIVATE_KEY)
       this.providers.push(new StoryblocksProvider(
