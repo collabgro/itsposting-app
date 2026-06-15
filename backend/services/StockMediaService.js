@@ -10,7 +10,7 @@
  * Providers supported:
  *   PIXABAY_API_KEY              → Pixabay (free, no attribution, 100 req/min; cache 24h per ToS)
  *   PEXELS_API_KEY               → Pexels (free, no attribution, 200/hr)
- *   UNSPLASH_ACCESS_KEY          → Unsplash (free images only, 5,000/hr with production approval)
+ *   UNSPLASH_ACCESS_KEY          → Unsplash (excluded — attribution + hotlinking requirements incompatible with Cloudinary pipeline)
  *   FREEPIK_API_KEY              → Freepik Business API (paid tier, images only)
  *   SHUTTERSTOCK_API_KEY         → Shutterstock (paid subscription, images + video)
  *   STORYBLOCKS_PUBLIC_KEY +
@@ -159,9 +159,31 @@ class PexelsProvider {
 }
 
 // ── Provider: Unsplash (images only) ─────────────────────────────────────────
+// EXCLUDED from the active candidate pool for two reasons:
+//   1. Attribution required — "Photo by [name] on Unsplash" must be visible wherever the image
+//      appears. Our branded photo card overlay leaves no room for this.
+//   2. Hotlinking REQUIRED (opposite of Pixabay) — Unsplash requires image URLs to be served
+//      directly from their CDN so they can track photo views for photographers. Our pipeline
+//      downloads → Sharp brand overlay → re-uploads to Cloudinary, which breaks their tracking.
+// Provider code is retained for future flows (e.g., a raw URL display path without branding).
+// Excluded via requiresAttribution=true flag, filtered out in findAndValidate().
 class UnsplashProvider {
-  constructor(accessKey) { this.accessKey = accessKey; this.name = 'unsplash'; }
+  constructor(accessKey) {
+    this.accessKey = accessKey;
+    this.name = 'unsplash';
+    this.requiresAttribution = true; // excluded from default photo post flow
+  }
   supportsVideo() { return false; }
+
+  // Call this after selecting an Unsplash photo — required by Unsplash API ToS.
+  // Fire-and-forget; non-blocking.
+  trackDownload(photoId) {
+    if (!photoId) return;
+    fetchJSON(
+      `https://api.unsplash.com/photos/${photoId}/download`,
+      { Authorization: `Client-ID ${this.accessKey}` }
+    ).catch(e => console.warn('[StockMedia] Unsplash download tracking failed:', e.message));
+  }
 
   async search(keywords, mediaType = 'image', limit = 5) {
     if (mediaType === 'video') return [];
@@ -182,6 +204,8 @@ class UnsplashProvider {
       ],
       downloads: p.downloads || p.likes * 10 || 0,
       source: this.name, isVideo: false,
+      // Retain id so trackDownload() can be called when this photo is selected
+      _unsplashId: p.id,
     })).filter(r => r.url);
   }
 }
@@ -329,6 +353,10 @@ class StockMediaService {
     }
   }
 
+  // Called when a candidate is selected for use — hook for provider-specific post-selection
+  // actions (e.g. Unsplash download tracking). Currently a no-op since Unsplash is excluded.
+  _onSelected(candidate) {}
+
   // ── Score a candidate against the search keywords ────────────────────────
   _score(candidate, searchKeywords) {
     const resScore = Math.min(candidate.width || 0, 1080) / 1080;
@@ -390,9 +418,11 @@ class StockMediaService {
 
     if (!searchKeywords.length || !this.enabled) return null;
 
-    const eligible = mediaType === 'video'
+    // Exclude providers that require attribution — branded photo cards leave no room for it
+    const eligible = (mediaType === 'video'
       ? this.providers.filter(p => p.supportsVideo())
-      : this.providers;
+      : this.providers
+    ).filter(p => !p.requiresAttribution);
     if (!eligible.length) return null;
 
     // Cache hit
@@ -439,11 +469,12 @@ class StockMediaService {
       }
       if (candidate._tagOverlap > 0.8) {
         console.log(`[StockMedia] Accepted high overlap (${(candidate._tagOverlap * 100).toFixed(0)}%): ${candidate.source}`);
+        this._onSelected(candidate);
         return candidate;
       }
       // Moderate overlap — Claude Vision decides
       const ok = await this._validateWithVision(candidate, mustMatchScene, threshold);
-      if (ok) return candidate;
+      if (ok) { this._onSelected(candidate); return candidate; }
     }
 
     return null;
