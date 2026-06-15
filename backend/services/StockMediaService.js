@@ -603,7 +603,7 @@ class StockMediaService {
     this.cache.set(searchKeywords, scored.slice(0, 5));
 
     // Validate top N candidates in order
-    for (const candidate of scored.slice(0, maxCandidates)) {
+    for (let candidate of scored.slice(0, maxCandidates)) {
       if (candidate._tagOverlap < 0.5) {
         console.log(`[StockMedia] Rejected low overlap (${(candidate._tagOverlap * 100).toFixed(0)}%): ${candidate.source}`);
         continue;

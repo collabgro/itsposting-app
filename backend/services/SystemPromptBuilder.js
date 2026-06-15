@@ -261,7 +261,15 @@ Visual style: ${sanitizeField(c.visual_style, 80) || 'modern and clean'}`;
     }
 
     if (c.brand_colors) {
-      const colors = Array.isArray(c.brand_colors) ? c.brand_colors.filter(Boolean).join(', ') : c.brand_colors;
+      // brand_colors may be: string, array, or JSONB object — normalise to comma-separated string
+      let colors;
+      if (Array.isArray(c.brand_colors)) {
+        colors = c.brand_colors.filter(Boolean).join(', ');
+      } else if (typeof c.brand_colors === 'object') {
+        colors = Object.values(c.brand_colors).filter(Boolean).join(', ');
+      } else {
+        colors = String(c.brand_colors);
+      }
       if (colors && colors.trim()) {
         ctx += `\n\nBrand colors: ${colors} — reference these in image prompts where relevant.`;
       } else {
@@ -1092,7 +1100,10 @@ CRITICAL JSON SAFETY RULES (violations cause parse errors):
     const brandColors = (() => {
       const c = this.customer;
       if (!c.brand_colors) return '';
-      const colors = Array.isArray(c.brand_colors) ? c.brand_colors.join(', ') : c.brand_colors;
+      let colors;
+      if (Array.isArray(c.brand_colors)) colors = c.brand_colors.filter(Boolean).join(', ');
+      else if (typeof c.brand_colors === 'object') colors = Object.values(c.brand_colors).filter(Boolean).join(', ');
+      else colors = String(c.brand_colors);
       return colors ? `If incorporating branded elements, the business brand colors are: ${colors}.` : '';
     })();
 
