@@ -781,6 +781,28 @@ console.log('══════════════════════�
     `ALTER TABLE posts ADD COLUMN IF NOT EXISTS approval_note TEXT`,
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS require_post_approval BOOLEAN DEFAULT FALSE`,
     `CREATE INDEX IF NOT EXISTS idx_posts_approval ON posts(customer_id, approval_status) WHERE approval_status IS NOT NULL`,
+    // Media library — core table (must be in startup so /api/media routes don't crash on fresh deploy)
+    `CREATE TABLE IF NOT EXISTS media_library (
+      id                   SERIAL PRIMARY KEY,
+      customer_id          INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      cloudinary_public_id VARCHAR(500),
+      url                  TEXT NOT NULL,
+      thumbnail_url        TEXT,
+      file_name            VARCHAR(255),
+      file_type            VARCHAR(50),
+      mime_type            VARCHAR(100),
+      file_size_bytes      BIGINT DEFAULT 0,
+      width                INTEGER,
+      height               INTEGER,
+      duration_seconds     NUMERIC,
+      folder               VARCHAR(100) DEFAULT 'all',
+      used_in_posts        INTEGER DEFAULT 0,
+      last_used_at         TIMESTAMP,
+      uploaded_at          TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_media_library_folder ON media_library(customer_id, folder)`,
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS storage_used_bytes BIGINT DEFAULT 0`,
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS storage_quota_bytes BIGINT DEFAULT 10737418240`,
     // Media library AI tagging
     `ALTER TABLE media_library ADD COLUMN IF NOT EXISTS ai_tags TEXT[] DEFAULT '{}'`,
     `CREATE INDEX IF NOT EXISTS idx_media_ai_tags ON media_library USING gin(ai_tags)`,
