@@ -1866,8 +1866,8 @@ Return ONLY valid JSON (no markdown, no backticks):
           try {
             const variationHashtags = {
               A: parsed.variation_a?.hashtags || [],
-              B: parsed.variation_b?.hashtags || parsed.variation_a?.hashtags || [],
-              C: parsed.variation_c?.hashtags || parsed.variation_a?.hashtags || [],
+              B: parsed.variation_b?.hashtags || [],
+              C: parsed.variation_c?.hashtags || [],
             };
             for (const [label, variation] of Object.entries(transformedVariations)) {
               await pool.query(
@@ -2138,7 +2138,7 @@ Return ONLY valid JSON (no markdown, no backticks):
                  ON CONFLICT DO NOTHING`,
                 [bgPostId, bgCustomer.id, bgScript, bgImagePrompt || null,
                  videoResult.keyFrameUrl || null, videoResult.url,
-                 videoResult.provider || bgVideoType, bgVideoType, bgAspectRatio, 7,
+                 videoResult.provider || bgVideoType, bgVideoType, bgAspectRatio, 6,
                  bgCustomer.industry, 'video', videoResult.model || videoResult.provider || null,
                  videoGenMs]
               ).catch(e => console.warn('[Wizard BG] video_training_data insert failed:', e.message));
@@ -2631,6 +2631,19 @@ Return ONLY valid JSON (no markdown, no backticks):
         } catch (imgErr) {
           console.warn('[Wizard/quick] Image generation failed:', imgErr.message);
           imageFailed = true;
+          // Refund the 3 credits we already deducted — user gets nothing if there's no image
+          await pool.query(
+            'UPDATE customers SET credits_balance = credits_balance + $2, credits_used_this_month = GREATEST(credits_used_this_month - $2, 0) WHERE id = $1',
+            [billingId, creditCost]
+          ).catch(refundErr => console.error('[Wizard/quick] Credit refund failed (manual review needed):', refundErr.message));
+          return res.json({
+            success: true,
+            imageFailed: true,
+            imageFailedMessage: 'Image generation failed this time. Your credits were not charged. Please try again.',
+            variations,
+            mediaUrl: null,
+            creditsRemaining: quickDeduct.rows[0].credits_balance + creditCost,
+          });
         }
       }
 
@@ -2735,6 +2748,11 @@ Return ONLY valid JSON (no markdown, no backticks):
         [req.customerId]
       );
       const customer = customerResult.rows[0];
+
+      // Guard: customer must exist before we charge anything
+      if (!customer) {
+        return res.status(404).json({ error: 'Customer not found.' });
+      }
 
       const refreshBillingId = getBillingCustomerId(req);
 

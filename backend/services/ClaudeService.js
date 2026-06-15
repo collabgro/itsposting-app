@@ -14,6 +14,22 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const SystemPromptBuilder = require('./SystemPromptBuilder');
 
+// Mirrors the repairJSON helper in wizard.js — fixes literal newlines inside Claude JSON strings
+function _repairJSON(str) {
+  let inString = false, escaped = false, result = '';
+  for (let i = 0; i < str.length; i++) {
+    const ch = str[i];
+    if (escaped) { escaped = false; result += ch; continue; }
+    if (ch === '\\') { escaped = true; result += ch; continue; }
+    if (ch === '"') { inString = !inString; result += ch; continue; }
+    if (inString && ch === '\n') { result += '\\n'; continue; }
+    if (inString && ch === '\r') { continue; }
+    if (inString && ch === '\t') { result += '\\t'; continue; }
+    result += ch;
+  }
+  return result;
+}
+
 class ClaudeService {
   constructor(pool) {
     this.pool = pool;
@@ -77,7 +93,14 @@ class ClaudeService {
 
       rawText = response.content[0].text;
       const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      const parsed = JSON.parse(cleaned);
+
+      let parsed;
+      try {
+        parsed = JSON.parse(cleaned);
+      } catch {
+        // Claude sometimes emits literal newlines inside string values — repair and retry
+        parsed = JSON.parse(_repairJSON(cleaned));
+      }
 
       if (!parsed.variation_a || !parsed.variation_b || !parsed.variation_c) {
         throw new Error('Claude returned incomplete variations — missing A, B, or C');
