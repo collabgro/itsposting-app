@@ -735,6 +735,7 @@ console.log('══════════════════════�
     `CREATE INDEX IF NOT EXISTS idx_posts_source ON posts(source)`,
     `CREATE INDEX IF NOT EXISTS idx_engagement_snapshots_post_id ON post_engagement_snapshots(post_id)`,
     `CREATE INDEX IF NOT EXISTS idx_notifications_customer_id ON notifications(customer_id)`,
+    `ALTER TABLE notifications ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT false`,
     `CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(customer_id, is_read)`,
     `CREATE INDEX IF NOT EXISTS idx_business_knowledge_customer_id ON business_knowledge(customer_id)`,
     `CREATE INDEX IF NOT EXISTS idx_social_accounts_customer ON social_accounts(customer_id)`,
