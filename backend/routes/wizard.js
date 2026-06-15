@@ -1694,6 +1694,15 @@ Return ONLY valid JSON (no markdown, no backticks):
             mediaUrl = imageResult.url;
             const rawPhotoUrl = imageResult.url; // preserve original before potential overwrite by card URLs
 
+            // Unified media source log — visible in Railway Deploy Logs for every generate
+            if (mediaSource === 'customer_upload') {
+              console.log(`[Wizard] ✅ Media source: customer_upload — used photo uploaded by customer (${imgGenMs}ms)`);
+            } else if (mediaSource && mediaSource !== 'nanobanana') {
+              console.log(`[Wizard] ✅ Media source: ${mediaSource} (royalty-free stock) — NanoBanana skipped (${imgGenMs}ms)`);
+            } else {
+              console.log(`[Wizard] ✅ Media source: nanobanana (AI-generated) — no stock candidate passed threshold (${imgGenMs}ms)`);
+            }
+
             // ── Photo Card overlay (3 branded templates per variation) ──────────
             // Fetch the raw photo buffer, composite branded overlays, upload 3 variants.
             // Each wizard variation (A/B/C) gets a different card template.
