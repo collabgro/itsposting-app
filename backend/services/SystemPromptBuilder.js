@@ -926,6 +926,10 @@ ${photoCardDesignBrief}
 ${imageGuidance}
 {
   "imagePrompt": "${isPhoto ? 'CRAFT THIS based on the PHOTO CARD DESIGN BRIEF above. Include: exact subject position for the CHOSEN template, cinematic editorial lighting, professional photography style. One paragraph, specific and vivid.' : 'A SINGLE shared image prompt for ALL 3 variations. Include: subject, setting, lighting, style, mood, composition.'}",${isPhoto ? `
+  "mediaSpec": {
+    "searchKeywords": ["2-word trade term", "generic scene noun", "optional 3rd term"],
+    "mustMatchScene": "One plain sentence: what must this photo show? e.g. a plumber working under a kitchen sink with visible pipe and tools"
+  },` : ''}${isPhoto ? `
   "cardOverlay": {
     "headline": "4-6 word COMPLETE headline — must make sense standalone, not a fragment. Good: 'Drain Cleared Same Day', 'Storm Damage Fixed Right', 'Frozen Pipes? We Fix That'. Bad: 'What You Need To', '5 Signs Your Roof'.",
     "eyebrow": "Small text above headline, hyper-local + trust signal (e.g. LICENSED PLUMBER · DALLAS TX). Max 6 words.",
@@ -1001,7 +1005,9 @@ Rules for all 3 variations:
 - engagementScore is 0-100 — your honest assessment of predicted engagement
 - Variation A is for Facebook, B for Instagram, C for Google Business (even if platform = 'all')
 - imagePrompt MUST work for ALL three variations — it is shared and generated once (saves cost)
-- NEVER output the same hashtag set for multiple variations${isCarousel ? `
+- NEVER output the same hashtag set for multiple variations${isPhoto ? `
+- mediaSpec.searchKeywords: 2-3 GENERIC trade terms for a stock photo library search (NOT the detailed imagePrompt). Example: ["plumber","pipe repair","kitchen sink"] — never a full sentence
+- mediaSpec.mustMatchScene: ONE plain sentence describing what the ideal stock photo shows — used to validate search results visually` : ''}${isCarousel ? `
 - Carousel slide count: follow the SLIDE COUNT RULES above (3–6 slides based on topic). slideType must be "cover" (slide 1), "body" (middle), or "cta" (last). Cover has bold 3-5 word headline + one curiosity-gap subtext, no bullets. Body has short title + 2-3 bullets + subtext. CTA has hook question + single action nudge, no bullets.` : ''}
 
 CRITICAL JSON SAFETY RULES (violations cause parse errors):

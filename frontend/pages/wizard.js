@@ -560,6 +560,10 @@ export default function Wizard() {
   const [theme, setTheme] = useState(null);       // Step 3
   const [tone, setTone] = useState(null);         // Step 4
   const [details, setDetails] = useState('');     // Step 5
+  const [customerMediaUrl, setCustomerMediaUrl] = useState(null);   // optional customer photo/video upload
+  const [customerMediaPreview, setCustomerMediaPreview] = useState(null); // preview URL (may be blob)
+  const [customerMediaUploading, setCustomerMediaUploading] = useState(false);
+  const [customerMediaType, setCustomerMediaType] = useState(null); // 'image' | 'video'
   const [selectedPlatforms, setSelectedPlatforms] = useState([]); // Step 6
   const [includeCTA, setIncludeCTA] = useState(true);
 
@@ -957,6 +961,46 @@ export default function Wizard() {
     }
   };
 
+  // ── Customer media upload handler ─────────────────────────────────────────
+  const handleCustomerMediaUpload = async (file) => {
+    if (!file) return;
+    const isVideo = file.type.startsWith('video/');
+    const isImage = file.type.startsWith('image/');
+    if (!isImage && !isVideo) return;
+
+    setCustomerMediaUploading(true);
+    setCustomerMediaPreview(URL.createObjectURL(file));
+    setCustomerMediaType(isVideo ? 'video' : 'image');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      // Reuse the existing upload endpoint (0 credits, goes to Cloudinary)
+      const res = await api.post('/api/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const url = res.data?.url || res.data?.mediaUrl || res.data?.file?.url;
+      if (url) {
+        setCustomerMediaUrl(url);
+      } else {
+        setCustomerMediaUrl(null);
+      }
+    } catch (e) {
+      console.warn('Customer media upload failed:', e.message);
+      setCustomerMediaUrl(null);
+      setCustomerMediaPreview(null);
+      setCustomerMediaType(null);
+    } finally {
+      setCustomerMediaUploading(false);
+    }
+  };
+
+  const handleCustomerMediaRemove = () => {
+    setCustomerMediaUrl(null);
+    setCustomerMediaPreview(null);
+    setCustomerMediaType(null);
+  };
+
   // Format encodes platform — skip step 6 ("Where to post?") when a specific format is chosen
   const formatSkipsPlatformStep = selectedFormat && selectedFormat.id !== 'universal';
 
@@ -981,6 +1025,7 @@ export default function Wizard() {
   const handleReset = () => {
     setStep(1); setContentType(null); setVideoType('services'); setVideoStyle('reel'); setTheme(null); setTone(null); setSelectedPlatforms([]);
     setDetails(''); setIncludeCTA(true); setResults(null); setError(null);
+    setCustomerMediaUrl(null); setCustomerMediaPreview(null); setCustomerMediaType(null);
     setSelectedFormat(null); setFormatTab('Popular'); setHoveredFormat(null); setSelectedPlatformTab('instagram_feed');
     setSelectedVariation('A'); setSelectedCardStyle('A'); setActiveSlide(0); setActionLoading(false); setActionToast(null);
     setExtraCarouselDesigns({}); setCarouselDesignPreview(null);
@@ -1142,7 +1187,7 @@ export default function Wizard() {
         await apiPost('/api/wizard/step', { wizardId, stepId: 'music_mood', answers: { value: musicMood } });
       }
 
-      const genRes = await apiPost('/api/wizard/generate', { wizardId }, { timeout: 300000 });
+      const genRes = await apiPost('/api/wizard/generate', { wizardId, customerMediaUrl: customerMediaUrl || undefined }, { timeout: 300000 });
       // If video is still generating in the backend (background job), start the progress ring + polling
       if (genRes.imageFailed && genRes.contentTypeSelection === 'video' && genRes.postId) {
         genRes.videoRendering = true;
@@ -2128,13 +2173,63 @@ export default function Wizard() {
             </div>
 
             {/* Include CTA toggle */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 14, marginBottom: 32, boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.85'})` }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 14, marginBottom: 16, boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.85'})` }}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Include phone number & call to action</div>
                 <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2 }}>Add a call-to-action pointing to your contact info</div>
               </div>
               <Toggle value={includeCTA} onChange={setIncludeCTA} t={t} />
             </div>
+
+            {/* ── Optional customer media upload (photo posts only) ─────────── */}
+            {(contentType === 'photo' || contentType === 'video') && (() => {
+              const UPLOAD_LABELS = {
+                got_review:        { title: 'Add a customer photo (optional)', sub: 'Upload a real photo of the customer or their project — makes testimonials 10x more authentic' },
+                team_spotlight:    { title: 'Upload your team member\'s photo', sub: 'A real face builds trust. Our AI will polish it to look professional.' },
+                just_finished_job: { title: 'Got a job photo? Upload it', sub: 'Real job-site photos outperform stock images every time — our AI will enhance it.' },
+                before_after:      { title: 'Upload your before & after photos', sub: 'Real transformations get far more engagement. Upload the originals and AI will polish them.' },
+                running_promo:     { title: 'Add a photo to your promo (optional)', sub: 'A product or job photo makes promotions more credible.' },
+                custom:            { title: 'Upload a reference photo (optional)', sub: 'Give the AI something to work with — it will enhance and adapt your photo.' },
+              };
+              const label = UPLOAD_LABELS[theme] || { title: 'Add your own photo (optional)', sub: 'Upload a real photo — our AI will enhance it for social media.' };
+              return (
+                <div style={{ marginBottom: 20, padding: '16px 18px', background: t.isDark ? 'rgba(124,92,252,0.06)' : 'rgba(124,92,252,0.04)', border: `1px dashed ${t.isDark ? 'rgba(124,92,252,0.35)' : 'rgba(124,92,252,0.25)'}`, borderRadius: 14 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 4 }}>{label.title}</div>
+                  <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 12, lineHeight: 1.5 }}>{label.sub}</div>
+                  {customerMediaPreview ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      {customerMediaType === 'image' ? (
+                        <img src={customerMediaPreview} alt="Upload preview" style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: `1px solid ${t.border}` }} />
+                      ) : (
+                        <video src={customerMediaPreview} style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: `1px solid ${t.border}` }} muted />
+                      )}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12, color: t.text, fontWeight: 500, marginBottom: 4 }}>
+                          {customerMediaUploading ? 'Uploading…' : (customerMediaUrl ? '✓ Uploaded — AI will enhance this' : 'Upload failed — try again')}
+                        </div>
+                        <button
+                          onClick={handleCustomerMediaRemove}
+                          style={{ fontSize: 11, color: t.error, background: 'none', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'underline' }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '10px 14px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 10, fontSize: 13, color: t.textSecondary, userSelect: 'none', width: 'fit-content' }}>
+                      <IpPlus size={16} color={t.primary} />
+                      {customerMediaUploading ? 'Uploading…' : 'Choose photo or video'}
+                      <input
+                        type="file"
+                        accept="image/*,video/*"
+                        style={{ display: 'none' }}
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCustomerMediaUpload(f); e.target.value = ''; }}
+                      />
+                    </label>
+                  )}
+                </div>
+              );
+            })()}
 
             {error && (
               <div style={{ padding: '12px 16px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, color: t.error, fontSize: 13, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>

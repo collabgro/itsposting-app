@@ -1244,6 +1244,10 @@ console.log('══════════════════════�
       UNIQUE(post_id, slide_number)
     )`,
     `CREATE INDEX IF NOT EXISTS idx_carousel_post ON post_carousel_slides(post_id)`,
+
+    // Smart Media Sourcing Layer — track where each post's image came from
+    // Values: 'nanobanana' | 'customer_upload' | 'pixabay' | 'pexels' | 'unsplash' | 'freepik' | 'shutterstock' | 'storyblocks'
+    `ALTER TABLE posts ADD COLUMN IF NOT EXISTS media_source VARCHAR(30) DEFAULT 'nanobanana'`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }

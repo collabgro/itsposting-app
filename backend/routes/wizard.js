@@ -87,7 +87,43 @@ try {
   DesignAdvisorService = null;
 }
 
+let StockMediaService;
+try {
+  StockMediaService = require('../services/StockMediaService');
+  if (!StockMediaService?.enabled) StockMediaService = null;
+} catch {
+  StockMediaService = null;
+}
+
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+// ── Stock Media Routing ──────────────────────────────────────────────────────
+// Industries where stock search never yields useful results — skip immediately
+const STOCK_SKIP_INDUSTRIES = new Set([
+  'pest_control', 'gutter_cleaning', 'junk_removal',
+]);
+
+// Content themes where stock cannot serve the intent authentically
+const STOCK_SKIP_THEMES = new Set([
+  'before_after', 'team_spotlight', 'got_review',
+  'just_finished_job', 'custom', 'behind_scenes',
+]);
+
+// Industry confidence tiers — controls candidate count and Vision threshold
+const INDUSTRY_STOCK_CONFIDENCE = {
+  landscaping: 'high', solar: 'high', cleaning: 'high',
+  plumbing: 'high', hvac: 'high', roofing: 'high',
+  pool_spa: 'high', general_contractor: 'high',
+  painting: 'medium', electrical: 'medium', flooring: 'medium',
+  tree_service: 'medium', pressure_washing: 'medium', handyman: 'medium',
+  concrete: 'low',
+};
+
+const CONFIDENCE_SETTINGS = {
+  high:   { maxCandidates: 3, threshold: 70 },
+  medium: { maxCandidates: 2, threshold: 70 },
+  low:    { maxCandidates: 1, threshold: 80 },
+};
 
 // Format → dimensions + media type + platform map. Mirrors FORMAT_DATA in frontend/pages/wizard.js.
 // platform drives SystemPromptBuilder caption rules (Instagram-style vs Facebook-style etc.)
@@ -840,7 +876,22 @@ module.exports = (pool) => {
     res.setTimeout(280000);
     let debugStage = 'start';
     try {
-      const { wizardId } = req.body;
+      const { wizardId, customerMediaUrl } = req.body;
+
+      // Validate customerMediaUrl if provided — only HTTPS, non-private URLs
+      let validatedCustomerMediaUrl = null;
+      if (customerMediaUrl) {
+        try {
+          const parsed = new URL(customerMediaUrl);
+          if (parsed.protocol === 'https:') {
+            const host = parsed.hostname.toLowerCase();
+            const BLOCKED = ['localhost', '127.', '0.0.0.0', '169.254.', '10.', '172.16.', '192.168.', '::1'];
+            if (!BLOCKED.some(b => host.startsWith(b))) {
+              validatedCustomerMediaUrl = customerMediaUrl;
+            }
+          }
+        } catch {}
+      }
 
       if (!wizardId) {
         return res.status(404).json({ error: 'Wizard session not found or expired. Please start again.' });
@@ -1306,6 +1357,7 @@ Return ONLY valid JSON (no markdown, no backticks):
       let mediaUrl = null;
       let mediaVariants = {};
       let imageFailed = false;
+      let mediaSource = 'nanobanana'; // tracked for analytics; updated when stock or customer upload is used
       const imagePromptForGen = parsed.imagePrompt || parsed.variation_a?.imagePrompt || '';
       // Skip image gen if video format was selected (video pipeline handles its own key frame)
       const contentTypeForMedia = isVideoPost ? 'video' : answers.contentTypeSelection;
@@ -1551,15 +1603,93 @@ Return ONLY valid JSON (no markdown, no backticks):
               }
             }
           } else {
-            // Photo — try once, retry once on failure
+            // Photo — routing priority:
+            //   1. Customer uploaded their own photo → NanoBanana editImage (AI enhancement of real content)
+            //   2. Stock-eligible content → royalty-free search → NanoBanana fallback
+            //   3. Everything else → NanoBanana text-to-image directly
             const imgGenStart = Date.now();
-            let imageResult;
-            try {
-              imageResult = await attemptImageGen(imagePromptForGen);
-            } catch (firstErr) {
-              console.warn('[Wizard] Image gen attempt 1 failed, retrying:', firstErr.message);
-              imageResult = await attemptImageGen(imagePromptForGen);
+            let imageResult = { url: null, model: null };
+
+            const _industry = session.customer.industry || 'general_contractor';
+            const _theme = answers.contentType || '';
+
+            if (validatedCustomerMediaUrl) {
+              // ── Path 1: Customer provided their own photo ───────────────────
+              // NanoBanana editImage: apply the AI image prompt as an editing instruction
+              // to their real photo (professional polish while preserving authentic content).
+              console.log('[Wizard] Customer media upload detected — NanoBanana editImage mode');
+              try {
+                const nbEdit = new NanoBananaService();
+                imageResult = await nbEdit.editImage(validatedCustomerMediaUrl, imagePromptForGen || 'Enhance this photo for professional social media use. Improve lighting, sharpness and composition. Keep the subject and scene exactly as-is.');
+                mediaSource = 'customer_upload';
+                console.log('[Wizard] NanoBanana editImage complete');
+              } catch (editErr) {
+                console.warn('[Wizard] NanoBanana editImage failed, using original upload:', editErr.message);
+                // Fall back to using the uploaded photo directly
+                imageResult = { url: validatedCustomerMediaUrl, model: 'customer_upload' };
+                mediaSource = 'customer_upload';
+              }
+            } else {
+              // ── Path 2: Stock search then NanoBanana fallback ───────────────
+              const _mediaSpec = parsed.mediaSpec || {};
+              const _useStock = StockMediaService?.enabled
+                && !STOCK_SKIP_INDUSTRIES.has(_industry)
+                && !STOCK_SKIP_THEMES.has(_theme)
+                && Array.isArray(_mediaSpec.searchKeywords) && _mediaSpec.searchKeywords.length > 0;
+
+              if (_useStock) {
+                const _conf = INDUSTRY_STOCK_CONFIDENCE[_industry] || 'medium';
+                const _settings = { ...CONFIDENCE_SETTINGS[_conf] };
+                // Seasonal content: lower threshold 5pts (caption carries the seasonal context)
+                if (_theme === 'seasonal') _settings.threshold = Math.max(_settings.threshold - 5, 55);
+
+                // Start NanoBanana in background at t=2s if stock hasn't resolved
+                let _nanoBackground = null;
+                const _nanoDelay = parseInt(process.env.STOCK_NANO_DELAY_MS || '2000', 10);
+                const _nanoTimer = setTimeout(() => {
+                  _nanoBackground = attemptImageGen(imagePromptForGen).catch(() => null);
+                  console.log('[Wizard] NanoBanana started in background (stock still running at t=2s)');
+                }, _nanoDelay);
+
+                const _stockTimeout = parseInt(process.env.STOCK_TIMEOUT_MS || '3000', 10);
+                const _stockResult = await Promise.race([
+                  StockMediaService.findAndValidate(
+                    { searchKeywords: _mediaSpec.searchKeywords, mustMatchScene: _mediaSpec.mustMatchScene || '' },
+                    { ..._settings, mediaType: 'image' }
+                  ).catch(e => { console.warn('[Wizard] Stock error:', e.message); return null; }),
+                  new Promise(r => setTimeout(() => r(null), _stockTimeout)),
+                ]);
+
+                clearTimeout(_nanoTimer);
+
+                if (_stockResult?.url) {
+                  imageResult = { url: _stockResult.url, model: `stock:${_stockResult.source}` };
+                  mediaSource = _stockResult.source;
+                  console.log(`[Wizard] Stock image from ${mediaSource} (overlap ${((_stockResult._tagOverlap || 0) * 100).toFixed(0)}%)`);
+                } else {
+                  // Stock failed — NanoBanana (background if already started)
+                  console.log('[Wizard] Stock unavailable — NanoBanana generating');
+                  let _nb = _nanoBackground ? (await _nanoBackground) : null;
+                  if (!_nb) {
+                    try { _nb = await attemptImageGen(imagePromptForGen); }
+                    catch (_e) {
+                      console.warn('[Wizard] NanaBanana attempt 1 failed, retrying:', _e.message);
+                      _nb = await attemptImageGen(imagePromptForGen);
+                    }
+                  }
+                  imageResult = _nb || imageResult;
+                }
+              } else {
+                // ── Path 3: NanoBanana text-to-image directly ─────────────────
+                try {
+                  imageResult = await attemptImageGen(imagePromptForGen);
+                } catch (firstErr) {
+                  console.warn('[Wizard] Image gen attempt 1 failed, retrying:', firstErr.message);
+                  imageResult = await attemptImageGen(imagePromptForGen);
+                }
+              }
             }
+
             const imgGenMs = Date.now() - imgGenStart;
             mediaUrl = imageResult.url;
             const rawPhotoUrl = imageResult.url; // preserve original before potential overwrite by card URLs
@@ -1703,6 +1833,12 @@ Return ONLY valid JSON (no markdown, no backticks):
         );
 
         savedPostId = postResult.rows[0]?.id;
+
+        // Track media source (fire-and-forget — non-blocking)
+        if (savedPostId && mediaSource && mediaSource !== 'nanobanana') {
+          pool.query(`UPDATE posts SET media_source = $1 WHERE id = $2`, [mediaSource, savedPostId])
+            .catch(e => console.warn('[Wizard] media_source update failed:', e.message));
+        }
 
         if (savedPostId) {
           try {
@@ -2044,6 +2180,7 @@ Return ONLY valid JSON (no markdown, no backticks):
         cardOverlay: parsed.cardOverlay || null,
         slides,
         videoScript,
+        mediaSource, // 'nanobanana' | 'customer_upload' | 'pixabay' | 'pexels' | 'unsplash' | etc.
         meta: {
           industry: session.customer.industry,
           tone: answers.tone,
