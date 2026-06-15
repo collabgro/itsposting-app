@@ -927,6 +927,9 @@ module.exports = (pool) => {
       // Resolve format config from selectedFormat.id (set by frontend FORMAT_DATA)
       const fmtId = answers.selectedFormat?.id || null;
       const fmtConfig = (fmtId && FORMAT_CONFIG[fmtId]) || {};
+      if (fmtId && !FORMAT_CONFIG[fmtId]) {
+        console.warn(`[Wizard] Unknown format ID "${fmtId}" — falling back to defaults`);
+      }
       const formatAspectRatio = fmtConfig.aspectRatio || null;
 
       // Format is the source of truth for platform (caption rules) and media type.
@@ -1006,6 +1009,7 @@ module.exports = (pool) => {
           const bcCity    = bcLoc.split(',')[0].trim();
           const bcMonthName = ['January','February','March','April','May','June','July','August','September','October','November','December'][bcMonth - 1];
 
+          let _bcTimeoutId;
           const cardClaudeResp = await Promise.race([
             anthropic.messages.create({
               model: 'claude-sonnet-4-6',
@@ -1048,8 +1052,8 @@ Return ONLY valid JSON (no markdown, no backticks):
   "hashtags": ["tag1", "tag2", "tag3", "tag4", "tag5"]
 }`,
               }],
-            }),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('AI timeout')), 30000)),
+            }).then(r => { clearTimeout(_bcTimeoutId); return r; }),
+            new Promise((_, reject) => { _bcTimeoutId = setTimeout(() => reject(new Error('AI timeout')), 30000); }),
           ]);
 
           let rawText = '';
@@ -1395,6 +1399,9 @@ Return ONLY valid JSON (no markdown, no backticks):
               running_promo: 3, promotion: 3, milestone: 3,  // punchy
             };
             const slideMax = CAROUSEL_MAX_BY_TRIGGER[answers.contentType] || 3;
+            if (!CAROUSEL_MAX_BY_TRIGGER[answers.contentType]) {
+              console.warn(`[Wizard] Carousel trigger "${answers.contentType}" not in CAROUSEL_MAX_BY_TRIGGER — defaulting to 3 slides`);
+            }
             const slideList = rawSlideList.slice(0, slideMax);
 
             // Staggered-parallel generation: slide N starts at N×700ms, all run concurrently.
@@ -2518,6 +2525,12 @@ Return ONLY valid JSON (no markdown, no backticks):
         } catch {
           return res.status(500).json({ error: 'Quick post generation failed. Please try again.' });
         }
+      }
+
+      // Guard: Claude must have returned a real caption before we charge anything
+      if (!parsed.variation_a?.caption || parsed.variation_a.caption.trim().length < 10) {
+        console.error('[Wizard/quick] Claude returned empty or unusable caption — credits NOT deducted');
+        return res.status(502).json({ error: 'AI returned an empty response. Please try again.' });
       }
 
       // Atomic credit deduction — fail fast if insufficient

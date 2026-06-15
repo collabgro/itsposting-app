@@ -1770,7 +1770,7 @@ export default function Wizard() {
                       label: '🎞️ Animated Reel',
                       desc: '3 AI-generated images crossfaded with branded overlays and music. Ready in under 60 seconds.',
                       tag: 'Recommended · Always works',
-                      tagColor: '#22c55e',
+                      tagColor: t.success,
                       note: null,
                     },
                     {
@@ -2801,7 +2801,7 @@ export default function Wizard() {
                             ) : (
                               <>
                                 <IpRefresh size={13} color={t.primary} />
-                                Load {altLineupQueue.length === 2 ? '3' : '3'} more designs
+                                Load {Math.min(altLineupQueue.length, 3)} more designs
                               </>
                             )}
                           </button>
@@ -3527,15 +3527,15 @@ export default function Wizard() {
                         return (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                             {publishedTo ? (
-                              <div style={{ width: '100%', padding: '14px', background: 'rgba(22,163,74,0.08)', border: '2px solid rgba(22,163,74,0.40)', borderRadius: 11, color: '#16A34A', fontSize: 14, fontWeight: 700, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, animation: 'fadeIn 350ms ease' }}>
-                                <IpCheckCircle size={16} color="#16A34A" /> Live on {publishedTo}
+                              <div style={{ width: '100%', padding: '14px', background: t.successBg, border: `2px solid ${t.successBorder}`, borderRadius: 11, color: t.success, fontSize: 14, fontWeight: 700, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, animation: 'fadeIn 350ms ease' }}>
+                                <IpCheckCircle size={16} color={t.success} /> Live on {publishedTo}
                               </div>
                             ) : (
-                              <button onClick={handlePostNow} disabled={actionLoading || !results.postId || blocked} style={{ width: '100%', padding: '13px 14px', background: blocked ? '#9CA3AF' : `linear-gradient(135deg, ${t.primary}, ${t.primaryLight || '#9B7BFF'})`, border: 'none', borderRadius: 11, color: '#fff', fontSize: 14, fontWeight: 700, cursor: (actionLoading || blocked) ? 'not-allowed' : 'pointer', opacity: (actionLoading || blocked) ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: blocked ? 'none' : '0 4px 16px rgba(124,92,252,0.38)', transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)' }}>
+                              <button onClick={handlePostNow} disabled={actionLoading || !results.postId || blocked} style={{ width: '100%', padding: '13px 14px', background: blocked ? t.textDisabled : `linear-gradient(135deg, ${t.primary}, ${t.primaryLight || '#9B7BFF'})`, border: 'none', borderRadius: 11, color: '#fff', fontSize: 14, fontWeight: 700, cursor: (actionLoading || blocked) ? 'not-allowed' : 'pointer', opacity: (actionLoading || blocked) ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: blocked ? 'none' : '0 4px 16px rgba(124,92,252,0.38)', transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)' }}>
                                 <Icon name="send" size={14} color="#fff" /> {actionLoading ? 'Publishing...' : 'Post Now'}
                               </button>
                             )}
-                            {overLimit && !publishedTo && <div style={{ fontSize: 10, color: '#ef4444', textAlign: 'center' }}>Caption too long for some platforms — edit to fix</div>}
+                            {overLimit && !publishedTo && <div style={{ fontSize: 10, color: t.error, textAlign: 'center' }}>Caption too long for some platforms — edit to fix</div>}
                           </div>
                         );
                       })()}

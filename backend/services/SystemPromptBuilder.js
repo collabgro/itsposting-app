@@ -993,7 +993,7 @@ ${imageGuidance}
       "description": "Friendly professional shot — plumber/tech smiling, finished job, or branded vehicle. Inviting not salesy."
     }
   ],
-  "carouselSlideCount": "How many slides you chose and why (e.g. '4 — promotion keeps it punchy' or '6 — myth-busting needs one slide per myth')",` : ''}
+` : ''}
   "variation_a": {
     "caption": "Full caption text for variation A",
     "hashtags": ["tag1", "tag2", "tag3"],
