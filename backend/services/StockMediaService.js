@@ -11,7 +11,7 @@
  *   PIXABAY_API_KEY              → Pixabay (free, no attribution, 100 req/min; cache 24h per ToS)
  *   PEXELS_API_KEY               → Pexels (free, no attribution, 200/hr)
  *   UNSPLASH_ACCESS_KEY          → Unsplash (excluded — attribution + hotlinking requirements incompatible with Cloudinary pipeline)
- *   FREEPIK_API_KEY              → Freepik Business API (paid tier, images only)
+ *   MAGNIFIC_API_KEY (or FREEPIK_API_KEY legacy) → Magnific (formerly Freepik, paid tier, images only)
  *   SHUTTERSTOCK_API_KEY         → Shutterstock (paid subscription, images + video)
  *   STORYBLOCKS_PUBLIC_KEY +
  *   STORYBLOCKS_PRIVATE_KEY      → Storyblocks (paid subscription, best video library)
@@ -210,28 +210,63 @@ class UnsplashProvider {
   }
 }
 
-// ── Provider: Freepik (images only, paid Business API) ────────────────────────
-class FreepikProvider {
-  constructor(apiKey) { this.apiKey = apiKey; this.name = 'freepik'; }
+// ── Provider: Magnific (formerly Freepik, images only, paid API) ──────────────
+// API docs: https://docs.magnific.com
+// Auth: x-magnific-api-key header
+// Search preview URLs are thumbnails only (~128px). After validation the winner's
+// actual licensed image URL is fetched via the separate download endpoint.
+class MagnificProvider {
+  constructor(apiKey) {
+    this.apiKey = apiKey;
+    this.name = 'magnific';
+    this.base = 'https://api.magnific.com';
+  }
   supportsVideo() { return false; }
+
+  // Called after the winner is selected — fetches the actual high-res download URL.
+  // The search endpoint only returns small preview thumbnails (key: "large" ≈ 128-300px).
+  async resolveUrl(candidate) {
+    if (!candidate._magnificId) return candidate;
+    try {
+      const data = await fetchJSON(
+        `${this.base}/v1/resources/${candidate._magnificId}/download?image_size=2000px`,
+        { 'x-magnific-api-key': this.apiKey },
+        5000
+      );
+      if (data?.data?.url) return { ...candidate, url: data.data.url };
+    } catch (err) {
+      console.warn('[StockMedia] Magnific download resolve failed:', err.message);
+    }
+    return candidate; // fall through with thumbnail if download call fails
+  }
 
   async search(keywords, mediaType = 'image', limit = 5) {
     if (mediaType === 'video') return [];
     const q = encodeURIComponent(keywords.slice(0, 3).join(' '));
-    const data = await fetchJSON(
-      `https://api.freepik.com/v1/resources?term=${q}&filters[type][id][0]=1&page_size=${limit}`,
-      { 'X-Freepik-API-Key': this.apiKey, 'Accept-Language': 'en-US' }
-    );
+    // filters[content_type][photo]=1 → photos only (no vectors, PSDs)
+    // filters[orientation][portrait]=1 → portrait orientation (4:5, matches our 1080×1350)
+    const url = `${this.base}/v1/resources?term=${q}&limit=${limit}` +
+      `&filters[content_type][photo]=1&filters[orientation][portrait]=1`;
+    const data = await fetchJSON(url, {
+      'x-magnific-api-key': this.apiKey,
+      'Accept-Language': 'en-US',
+    });
     if (!data.data) return [];
-    return data.data.map(item => ({
-      url: item.image?.source?.url || null,
-      thumbUrl: item.image?.source?.url || null,
-      width: item.image?.meta?.width || 1080,
-      height: item.image?.meta?.height || 1350,
-      tags: (item.title || '').toLowerCase().split(/\s+/).filter(Boolean),
-      downloads: item.stats?.downloads || 0,
-      source: this.name, isVideo: false,
-    })).filter(r => r.url);
+    return data.data
+      .filter(item => item.image?.type === 'photo')
+      .map(item => ({
+        url: item.image?.source?.url || null,   // preview thumbnail — resolveUrl() replaces this
+        thumbUrl: item.image?.source?.url || null,
+        width: 1080,   // actual dims not in list response; assume valid after download
+        height: 1350,
+        tags: (item.title || '').toLowerCase().split(/\s+/).filter(Boolean),
+        downloads: item.stats?.downloads || 0,
+        source: this.name,
+        isVideo: false,
+        _magnificId: item.id,  // needed for resolveUrl()
+        _provider: this,       // back-reference for resolveUrl() call in findAndValidate()
+      }))
+      .filter(r => r.url);
   }
 }
 
@@ -331,8 +366,9 @@ class StockMediaService {
       this.providers.push(new PexelsProvider(process.env.PEXELS_API_KEY));
     if (process.env.UNSPLASH_ACCESS_KEY)
       this.providers.push(new UnsplashProvider(process.env.UNSPLASH_ACCESS_KEY));
-    if (process.env.FREEPIK_API_KEY)
-      this.providers.push(new FreepikProvider(process.env.FREEPIK_API_KEY));
+    const magnificKey = process.env.MAGNIFIC_API_KEY || process.env.FREEPIK_API_KEY;
+    if (magnificKey)
+      this.providers.push(new MagnificProvider(magnificKey));
     if (process.env.SHUTTERSTOCK_API_KEY)
       this.providers.push(new ShutterstockProvider(
         process.env.SHUTTERSTOCK_API_KEY,
@@ -356,6 +392,15 @@ class StockMediaService {
   // Called when a candidate is selected for use — hook for provider-specific post-selection
   // actions (e.g. Unsplash download tracking). Currently a no-op since Unsplash is excluded.
   _onSelected(candidate) {}
+
+  // Delegates to the provider's resolveUrl() if it exists (Magnific needs a second API call
+  // to get the actual licensed download URL; other providers already have it in url).
+  async _resolveUrl(candidate) {
+    if (candidate._provider && typeof candidate._provider.resolveUrl === 'function') {
+      return candidate._provider.resolveUrl(candidate);
+    }
+    return candidate;
+  }
 
   // ── Score a candidate against the search keywords ────────────────────────
   _score(candidate, searchKeywords) {
@@ -429,10 +474,19 @@ class StockMediaService {
     const cached = this.cache.get(searchKeywords);
     if (cached && cached.length > 0) {
       console.log(`[StockMedia] Cache hit: ${searchKeywords.join(', ')}`);
-      const top = this._score(cached[0], searchKeywords);
-      if (top._tagOverlap > 0.8) return top;
+      let top = this._score(cached[0], searchKeywords);
+      if (top._tagOverlap > 0.8) {
+        top = await this._resolveUrl(top);
+        this._onSelected(top);
+        return top;
+      }
       const ok = await this._validateWithVision(top, mustMatchScene, threshold);
-      return ok ? top : null;
+      if (ok) {
+        top = await this._resolveUrl(top);
+        this._onSelected(top);
+        return top;
+      }
+      return null;
     }
 
     // Parallel search across providers (1s per provider)
@@ -469,12 +523,17 @@ class StockMediaService {
       }
       if (candidate._tagOverlap > 0.8) {
         console.log(`[StockMedia] Accepted high overlap (${(candidate._tagOverlap * 100).toFixed(0)}%): ${candidate.source}`);
+        candidate = await this._resolveUrl(candidate);
         this._onSelected(candidate);
         return candidate;
       }
       // Moderate overlap — Claude Vision decides
       const ok = await this._validateWithVision(candidate, mustMatchScene, threshold);
-      if (ok) { this._onSelected(candidate); return candidate; }
+      if (ok) {
+        candidate = await this._resolveUrl(candidate);
+        this._onSelected(candidate);
+        return candidate;
+      }
     }
 
     return null;
