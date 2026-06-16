@@ -593,21 +593,35 @@ class SocialPublisher {
   async postToGoogleBusiness(account, post) {
     const token = account.access_token;
 
-    // Fetch the GBP account list
-    const accRes = await axios.get(
-      'https://mybusinessbusinessinformation.googleapis.com/v1/accounts',
-      { headers: { Authorization: `Bearer ${token}` }, timeout: 15000 }
-    );
-    const accounts = accRes.data.accounts;
-    if (!accounts?.length) throw new Error('No Google Business accounts found');
+    // Each social_accounts row for google_business is ONE specific location — the OAuth
+    // callback (social.js /callback/google) inserts a separate row per connected location,
+    // with account_id = that location's resource name ("locations/{id}"). This must post to
+    // THAT location. Previously this always re-discovered "accounts[0] -> locations[0]" via
+    // fresh API calls regardless of which account row triggered the publish, so a multi-
+    // location customer's posts all landed on whichever single location Google's API
+    // happened to list first — duplicated once per connected location — while every other
+    // connected location never received a post at all.
+    let locationName = account.account_id?.startsWith('locations/') ? account.account_id : null;
 
-    // Fetch the first location
-    const locRes = await axios.get(
-      `https://mybusinessbusinessinformation.googleapis.com/v1/${accounts[0].name}/locations`,
-      { headers: { Authorization: `Bearer ${token}` }, timeout: 15000 }
-    );
-    const locations = locRes.data.locations;
-    if (!locations?.length) throw new Error('No Google Business locations found');
+    if (!locationName) {
+      // Legacy/fallback rows (created when no GMB location could be resolved at OAuth
+      // time — account_id is the bare Google user ID in that case) have no location
+      // resource name to target, so fall back to discovering one.
+      const accRes = await axios.get(
+        'https://mybusinessbusinessinformation.googleapis.com/v1/accounts',
+        { headers: { Authorization: `Bearer ${token}` }, timeout: 15000 }
+      );
+      const accounts = accRes.data.accounts;
+      if (!accounts?.length) throw new Error('No Google Business accounts found');
+
+      const locRes = await axios.get(
+        `https://mybusinessbusinessinformation.googleapis.com/v1/${accounts[0].name}/locations`,
+        { headers: { Authorization: `Bearer ${token}` }, timeout: 15000 }
+      );
+      const locations = locRes.data.locations;
+      if (!locations?.length) throw new Error('No Google Business locations found');
+      locationName = locations[0].name;
+    }
 
     const body = {
       languageCode: 'en-US',
@@ -619,7 +633,7 @@ class SocialPublisher {
     }
 
     const res = await axios.post(
-      `https://mybusiness.googleapis.com/v4/${locations[0].name}/localPosts`,
+      `https://mybusiness.googleapis.com/v4/${locationName}/localPosts`,
       body,
       { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, timeout: 15000 }
     );
