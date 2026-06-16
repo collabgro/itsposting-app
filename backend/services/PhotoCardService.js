@@ -103,6 +103,17 @@ function darkenHex(hex, factor = 0.25) {
   return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 }
 
+// Picks black or white text for readability on an arbitrary fill color — needed because
+// the colorRole fingerprint branch swaps which brand color lands behind hardcoded text.
+function getReadableTextColor(hex) {
+  const h = (hex || '#1B3A6B').replace('#', '').padStart(6, '0');
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.55 ? '#000000' : '#ffffff';
+}
+
 function lightenHex(hex, factor = 0.25) {
   const h = (hex || '#3B82F6').replace('#', '').padStart(6, '0');
   const r = Math.min(255, Math.round(parseInt(h.slice(0, 2), 16) + (255 - parseInt(h.slice(0, 2), 16)) * factor));
@@ -219,8 +230,8 @@ async function buildTemplateA(
   } = cardOverlay;
 
   const headText  = uppercase ? headline.toUpperCase() : toTitleCase(headline);
-  const headLines = wrapText(escapeXml(headText), 13);
-  const subLines  = wrapText(escapeXml(subtext), 24);
+  const headLines = wrapText(headText, 13).map(escapeXml);
+  const subLines  = wrapText(subtext, 24).map(escapeXml);
   const padX      = 58;
   const dark      = darkenHex(colors.primary, 0.28);
 
@@ -280,7 +291,7 @@ async function buildTemplateA(
 
   // Trust badge pill — top right
   if (badge) {
-    const badgeText = escapeXml(badge.toUpperCase());
+    const badgeText = escapeXml(badge.toUpperCase().slice(0, 28));
     const badgeW = Math.max(200, badgeText.length * 11 + 48);
     const badgeX = W - badgeW - 22;
     parts.push(`<rect x="${badgeX}" y="34" width="${badgeW}" height="48" rx="24" fill="rgba(255,255,255,0.92)"/>`);
@@ -369,8 +380,8 @@ async function buildTemplateB(
   } = cardOverlay;
 
   const headText  = uppercase ? headline.toUpperCase() : toTitleCase(headline);
-  const headLines = wrapText(escapeXml(headText), 10);
-  const subLines  = wrapText(escapeXml(subtext), 26);
+  const headLines = wrapText(headText, 10).map(escapeXml);
+  const subLines  = wrapText(subtext, 26).map(escapeXml);
   const padX      = 60;
   const dark      = darkenHex(colors.primary, 0.30);
 
@@ -418,7 +429,7 @@ async function buildTemplateB(
   }
 
   if (badge) {
-    const badgeText = escapeXml(badge.toUpperCase());
+    const badgeText = escapeXml(badge.toUpperCase().slice(0, 28));
     const badgeW = Math.max(190, badgeText.length * 11 + 44);
     const badgeX = W - badgeW - 22;
     parts.push(`<rect x="${badgeX}" y="34" width="${badgeW}" height="48" rx="24" fill="${colors.secondary}"/>`);
@@ -499,8 +510,8 @@ async function buildTemplateC(
   } = cardOverlay;
 
   const headText  = uppercase ? headline.toUpperCase() : toTitleCase(headline);
-  const headLines = wrapText(escapeXml(headText), 14);
-  const subLines  = wrapText(escapeXml(subtext), 26);
+  const headLines = wrapText(headText, 14).map(escapeXml);
+  const subLines  = wrapText(subtext, 26).map(escapeXml);
   const padX      = 58;
   const dark      = darkenHex(colors.primary, 0.30);
 
@@ -553,7 +564,7 @@ async function buildTemplateC(
   }
 
   if (badge) {
-    const badgeText = escapeXml(badge.toUpperCase());
+    const badgeText = escapeXml(badge.toUpperCase().slice(0, 28));
     const badgeW = Math.max(200, badgeText.length * 11 + 48);
     const badgeX = W - badgeW - 22;
     parts.push(`<rect x="${badgeX}" y="30" width="${badgeW}" height="48" rx="24" fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.50)" stroke-width="1.5"/>`);
@@ -635,8 +646,8 @@ async function buildTemplateD(
   } = cardOverlay;
 
   const headText  = uppercase ? headline.toUpperCase() : toTitleCase(headline);
-  const headLines = wrapText(escapeXml(headText), 14);
-  const subLines  = wrapText(escapeXml(subtext), 28);
+  const headLines = wrapText(headText, 14).map(escapeXml);
+  const subLines  = wrapText(subtext, 28).map(escapeXml);
   const padX      = 58;
 
   // Parse brand primary into r,g,b for the rgba tint
@@ -695,7 +706,7 @@ async function buildTemplateD(
 
   // Trust badge — white pill, brand-color text (Claude Design style)
   if (badge) {
-    const badgeText = escapeXml(badge.toUpperCase());
+    const badgeText = escapeXml(badge.toUpperCase().slice(0, 28));
     const badgeW = Math.max(210, badgeText.length * 11.5 + 52);
     const badgeX = W - badgeW - 24;
     parts.push(`<rect x="${badgeX}" y="30" width="${badgeW}" height="52" rx="26" fill="#ffffff"/>`);
@@ -776,7 +787,7 @@ async function buildTemplateE(
   } = cardOverlay;
 
   // Natural case for quotes — shouted quotes feel inauthentic
-  const quoteLines  = wrapText(escapeXml(headline), 28);
+  const quoteLines  = wrapText(headline, 28).map(escapeXml);
   const padX        = 64;
   const panelTop    = Math.floor(H * 0.44);
   const panelH      = H - panelTop;
@@ -818,7 +829,7 @@ async function buildTemplateE(
 
   // Badge pill — brand primary background (contrasts with white secondaries above)
   if (badge) {
-    const badgeText = escapeXml(badge.toUpperCase());
+    const badgeText = escapeXml(badge.toUpperCase().slice(0, 28));
     const badgeW = Math.max(200, badgeText.length * 11 + 48);
     const badgeX = W - badgeW - 22;
     parts.push(`<rect x="${badgeX}" y="32" width="${badgeW}" height="48" rx="24" fill="${colors.primary}"/>`);
@@ -888,8 +899,8 @@ async function buildTemplateF(
   } = cardOverlay;
 
   const headText  = uppercase ? headline.toUpperCase() : toTitleCase(headline);
-  const headLines = wrapText(escapeXml(headText), 14);
-  const subLines  = wrapText(escapeXml(subtext), 26);
+  const headLines = wrapText(headText, 14).map(escapeXml);
+  const subLines  = wrapText(subtext, 26).map(escapeXml);
   const padX      = 58;
   const dark      = darkenHex(colors.primary, 0.28);
 
@@ -952,7 +963,7 @@ async function buildTemplateF(
   }
 
   if (badge) {
-    const badgeText = escapeXml(badge.toUpperCase());
+    const badgeText = escapeXml(badge.toUpperCase().slice(0, 28));
     const badgeW = Math.max(200, badgeText.length * 11 + 48);
     const badgeX = W - badgeW - 22;
     parts.push(`<rect x="${badgeX}" y="34" width="${badgeW}" height="48" rx="24" fill="rgba(255,255,255,0.92)"/>`);
@@ -1043,8 +1054,8 @@ async function buildTemplateG(
   const headText  = uppercase ? headline.toUpperCase() : toTitleCase(headline);
   const panelW    = 580;
   const padX      = 54;
-  const headLines = wrapText(escapeXml(headText), 12);
-  const subLines  = wrapText(escapeXml(subtext), 22);
+  const headLines = wrapText(headText, 12).map(escapeXml);
+  const subLines  = wrapText(subtext, 22).map(escapeXml);
   const bullets   = Array.isArray(services) ? services.slice(0, 3) : [];
   const opacity   = fingerprint?.overlayOpacity || 0.88;
 
@@ -1085,7 +1096,7 @@ async function buildTemplateG(
 
   // Badge — inside panel, top area
   if (badge) {
-    const badgeText = escapeXml(badge.toUpperCase());
+    const badgeText = escapeXml(badge.toUpperCase().slice(0, 28));
     const badgeW = Math.max(170, badgeText.length * 10 + 36);
     if (badgeW < panelW - padX - 20) {
       parts.push(`<rect x="${padX}" y="104" width="${badgeW}" height="38" rx="6" fill="rgba(255,255,255,0.18)"/>`);
@@ -1187,8 +1198,8 @@ async function buildTemplateH(
   const padX       = cardX + 52;
   const cardOpacity = fingerprint?.overlayOpacity || 0.93;
 
-  const headLines  = wrapText(escapeXml(headText), 17);
-  const subLines   = wrapText(escapeXml(subtext), 30);
+  const headLines  = wrapText(headText, 17).map(escapeXml);
+  const subLines   = wrapText(subtext, 30).map(escapeXml);
   const bullets    = Array.isArray(services) ? services.slice(0, 3) : [];
 
   const headStartY = cardY + 124;
@@ -1245,7 +1256,7 @@ async function buildTemplateH(
 
   // Badge
   if (badge) {
-    const badgeText = escapeXml(badge.toUpperCase());
+    const badgeText = escapeXml(badge.toUpperCase().slice(0, 28));
     const badgeW = Math.max(160, badgeText.length * 10 + 36);
     const badgeX = cardX + cardW - badgeW - 20;
     parts.push(`<rect x="${badgeX}" y="${logoY + 8}" width="${badgeW}" height="40" rx="20" fill="${c.primary}"/>`);
@@ -1336,8 +1347,8 @@ async function buildTemplateI(
   const padX        = 58;
   const footOpacity = fingerprint?.overlayOpacity || 0.94;
 
-  const headLines   = wrapText(escapeXml(headText), 16);
-  const subLines    = wrapText(escapeXml(subtext), 30);
+  const headLines   = wrapText(headText, 16).map(escapeXml);
+  const subLines    = wrapText(subtext, 30).map(escapeXml);
   const bullets     = Array.isArray(services) ? services.slice(0, 2) : [];
 
   const headStartY  = footerY + 52;
@@ -1387,7 +1398,7 @@ async function buildTemplateI(
 
   // Badge — header right side
   if (badge) {
-    const badgeText = escapeXml(badge.toUpperCase());
+    const badgeText = escapeXml(badge.toUpperCase().slice(0, 28));
     const badgeW = Math.max(170, badgeText.length * 10 + 40);
     const badgeX = W - badgeW - 24;
     parts.push(`<rect x="${badgeX}" y="${Math.floor(headerH / 2) - 22}" width="${badgeW}" height="44" rx="22" fill="${c.secondary}"/>`);
@@ -1469,8 +1480,8 @@ async function buildTemplateJ(
   const padX       = 60;
   const dark       = darkenHex(c.primary, 0.22);
 
-  const headLines  = wrapText(escapeXml(headText), 14);
-  const subLines   = wrapText(escapeXml(subtext), 28);
+  const headLines  = wrapText(headText, 14).map(escapeXml);
+  const subLines   = wrapText(subtext, 28).map(escapeXml);
   const bullets    = Array.isArray(services) ? services.slice(0, 3) : [];
 
   const headStartY = splitY + 72;
@@ -1524,7 +1535,7 @@ async function buildTemplateJ(
 
   // Badge — photo area, top right
   if (badge) {
-    const badgeText = escapeXml(badge.toUpperCase());
+    const badgeText = escapeXml(badge.toUpperCase().slice(0, 28));
     const badgeW = Math.max(180, badgeText.length * 10 + 40);
     const badgeX = W - badgeW - 24;
     parts.push(`<rect x="${badgeX}" y="32" width="${badgeW}" height="52" rx="26" fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.55)" stroke-width="1.5"/>`);
@@ -1612,8 +1623,8 @@ async function buildTemplateK(
   } = cardOverlay;
 
   const headText  = uppercase ? headline.toUpperCase() : toTitleCase(headline);
-  const headLines = wrapText(escapeXml(headText), 14);
-  const subLines  = wrapText(escapeXml(subtext), 26);
+  const headLines = wrapText(headText, 14).map(escapeXml);
+  const subLines  = wrapText(subtext, 26).map(escapeXml);
   const bullets   = Array.isArray(services) ? services.slice(0, 4) : [];
   const padX = 60;
   const headStartY = 200;
@@ -1663,7 +1674,7 @@ async function buildTemplateK(
   }
 
   if (badge) {
-    const badgeText = escapeXml(badge.toUpperCase());
+    const badgeText = escapeXml(badge.toUpperCase().slice(0, 28));
     const badgeW = Math.max(200, badgeText.length * 11 + 48);
     const badgeX = W - badgeW - 24;
     parts.push(`<rect x="${badgeX}" y="32" width="${badgeW}" height="50" rx="25" fill="rgba(255,255,255,0.22)" stroke="rgba(255,255,255,0.55)" stroke-width="1.5"/>`);
@@ -1739,8 +1750,8 @@ async function buildTemplateL(
   } = cardOverlay;
 
   const headText  = uppercase ? headline.toUpperCase() : toTitleCase(headline);
-  const headLines = wrapText(escapeXml(headText), 14);
-  const subLines  = wrapText(escapeXml(subtext), 26);
+  const headLines = wrapText(headText, 14).map(escapeXml);
+  const subLines  = wrapText(subtext, 26).map(escapeXml);
   const bullets   = Array.isArray(services) ? services.slice(0, 3) : [];
   const frameInset = 22;
   const padX = frameInset + 36;
@@ -1791,7 +1802,7 @@ async function buildTemplateL(
   }
 
   if (badge) {
-    const badgeText = escapeXml(badge.toUpperCase());
+    const badgeText = escapeXml(badge.toUpperCase().slice(0, 28));
     const badgeW = Math.max(180, badgeText.length * 10.5 + 44);
     const badgeX = W - badgeW - frameInset - 8;
     parts.push(`<rect x="${badgeX}" y="46" width="${badgeW}" height="46" rx="23" fill="${c.secondary}"/>`);
@@ -1870,8 +1881,8 @@ async function buildTemplateM(
   } = cardOverlay;
 
   const headText  = uppercase ? headline.toUpperCase() : headline;
-  const headLines = wrapText(escapeXml(headText), 12);
-  const subLines  = wrapText(escapeXml(subtext), 28);
+  const headLines = wrapText(headText, 12).map(escapeXml);
+  const subLines  = wrapText(subtext, 28).map(escapeXml);
   const bullets   = Array.isArray(services) ? services.slice(0, 3) : [];
 
   const totalHeadH = headLines.length * 96 + 14;
@@ -1919,7 +1930,7 @@ async function buildTemplateM(
   }
 
   if (badge) {
-    const badgeText = escapeXml(badge.toUpperCase());
+    const badgeText = escapeXml(badge.toUpperCase().slice(0, 28));
     const badgeW = Math.max(180, badgeText.length * 11 + 44);
     const badgeX = W - badgeW - 24;
     parts.push(`<rect x="${badgeX}" y="28" width="${badgeW}" height="48" rx="24" fill="${c.primary}"/>`);
@@ -2051,7 +2062,7 @@ async function buildTemplateN(
   const padX      = 56;
   const dark      = darkenHex(c.primary, 0.20);
 
-  const headLines = wrapText(escapeXml(headText), 16);
+  const headLines = wrapText(headText, 16).map(escapeXml);
   const headStartY = stripY + 38;
   const headLineH  = 62;
   const headEndY   = headStartY + headLines.length * headLineH;
@@ -2086,7 +2097,7 @@ async function buildTemplateN(
 
   // Trust badge — photo area, top right (only badge visible on photo)
   if (badge) {
-    const badgeText = escapeXml(badge.toUpperCase());
+    const badgeText = escapeXml(badge.toUpperCase().slice(0, 28));
     const badgeW = Math.max(180, badgeText.length * 10 + 40);
     const badgeX = W - badgeW - 24;
     parts.push(`<rect x="${badgeX}" y="26" width="${badgeW}" height="46" rx="23" fill="${c.secondary}"/>`);
@@ -2153,8 +2164,8 @@ async function buildTemplateO(
 
   const { headline = '', eyebrow = '', subtext = '', cta = '', badge = '', services = [], uppercase = false } = cardOverlay;
   const headText  = uppercase ? headline.toUpperCase() : toTitleCase(headline);
-  const headLines = wrapText(escapeXml(headText), 12);
-  const subLines  = wrapText(escapeXml(subtext), 22);
+  const headLines = wrapText(headText, 12).map(escapeXml);
+  const subLines  = wrapText(subtext, 22).map(escapeXml);
   const bullets   = Array.isArray(services) ? services.slice(0, 3) : [];
   const padX = 58;
   const headStartY = 210;
@@ -2213,7 +2224,7 @@ async function buildTemplateO(
   }
 
   if (badge) {
-    const badgeText = escapeXml(badge.toUpperCase());
+    const badgeText = escapeXml(badge.toUpperCase().slice(0, 28));
     const badgeW = Math.max(180, badgeText.length * 10 + 40);
     const badgeX = W - badgeW - 22;
     parts.push(`<rect x="${badgeX}" y="30" width="${badgeW}" height="46" rx="23" fill="${c.secondary}"/>`);
@@ -2307,7 +2318,7 @@ async function buildTemplateP(
   const divW     = 6;
   const botH     = 168;
   const botY     = H - botH;
-  const headLines = wrapText(escapeXml(headline), 24);
+  const headLines = wrapText(headline, 24).map(escapeXml);
 
   // Build overlay parts (shared between Sharp + browser modes)
   const overlay = [];
@@ -2559,7 +2570,7 @@ async function buildTemplateR(
   };
   const displaySvcs = (svcs.length >= 2 ? svcs : (DEFAULT_SVCS_R[industry] || ['Expert Service', 'Quality Work', 'Satisfaction Guaranteed'])).slice(0, 3);
 
-  const headLines = wrapText(escapeXml(headline), 22);
+  const headLines = wrapText(headline, 22).map(escapeXml);
   const industryLabelR = INDUSTRY_LABEL_R[industry] || 'HOME SERVICES';
 
   // Service card geometry — 3 cards in a row
@@ -2609,7 +2620,7 @@ async function buildTemplateR(
   // 3 service feature cards
   displaySvcs.forEach((svc, i) => {
     const cx = cardsStartX + i * (cardW + cardGap);
-    const cardLines = wrapText(escapeXml(svc), 12);
+    const cardLines = wrapText(svc, 12).map(escapeXml);
     parts.push(`<rect x="${cx}" y="${cardY}" width="${cardW}" height="${cardH}" rx="12" fill="rgba(255,255,255,0.05)" stroke="${c.secondary}" stroke-width="1.5"/>`);
     parts.push(`<rect x="${cx}" y="${cardY}" width="${cardW}" height="6" rx="3" fill="${c.secondary}"/>`);
     cardLines.slice(0, 2).forEach((cl, ci) => {
@@ -2655,7 +2666,7 @@ async function buildTemplateS(
   const ph  = escapeXml(formatPhone(phone) || '');
 
   const headText  = toTitleCase(headline || businessName || 'Quality Work');
-  const headLines = wrapText(escapeXml(headText), 9).slice(0, 3);
+  const headLines = wrapText(headText, 9).map(escapeXml).slice(0, 3);
   const FONT_SIZE = headLines.length > 2 ? 108 : headLines.length === 2 ? 124 : 142;
   const LINE_H    = FONT_SIZE + 16;
   const totalH    = headLines.length * LINE_H;
@@ -2688,7 +2699,7 @@ async function buildTemplateS(
   parts.push(`<rect x="${W / 2 - 150}" y="${underY}" width="300" height="7" rx="3.5" fill="${c.secondary}"/>`);
 
   if (subtext) {
-    const subLines = wrapText(escapeXml(subtext), 32).slice(0, 2);
+    const subLines = wrapText(subtext, 32).map(escapeXml).slice(0, 2);
     subLines.forEach((l, i) => {
       parts.push(`<text x="${W / 2}" y="${underY + 28 + i * 40}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="22" fill="rgba(255,255,255,0.76)" text-anchor="middle" dominant-baseline="hanging">${l}</text>`);
     });
@@ -2735,8 +2746,8 @@ async function buildTemplateT(
   const bgPat  = getBgPattern(fingerprint?.bgPattern ?? 0, c.primary, 0.040);
 
   const headText  = toTitleCase(headline || businessName || '');
-  const headLines = wrapText(escapeXml(headText), 20).slice(0, 3);
-  const subLines  = wrapText(escapeXml(subtext), 34).slice(0, 2);
+  const headLines = wrapText(headText, 20).map(escapeXml).slice(0, 3);
+  const subLines  = wrapText(subtext, 34).map(escapeXml).slice(0, 2);
   const df = (field) => browserMode ? ` data-field="${field}"` : '';
 
   const FONT_SIZE  = 54;
@@ -2826,8 +2837,8 @@ async function buildTemplateU(
 
   const eyText    = escapeXml((eyebrow || industry || '').toUpperCase().slice(0, 32));
   const headText  = toTitleCase(headline || businessName || '');
-  const headLines = wrapText(escapeXml(headText), 17).slice(0, 3);
-  const subLines  = wrapText(escapeXml(subtext), 30).slice(0, 3);
+  const headLines = wrapText(headText, 17).map(escapeXml).slice(0, 3);
+  const subLines  = wrapText(subtext, 30).map(escapeXml).slice(0, 3);
   const ctaLabel  = escapeXml(cta || 'Call Today');
 
   const HEAD_LINE_H = 72;
@@ -2903,12 +2914,12 @@ async function buildTemplateV(
   const df = (field) => browserMode ? ` data-field="${field}"` : '';
 
   const headText  = toTitleCase(headline || businessName || '');
-  const headLines = wrapText(escapeXml(headText.toUpperCase()), 12).slice(0, 3);
+  const headLines = wrapText(headText.toUpperCase(), 12).map(escapeXml).slice(0, 3);
   const HEAD_LINE_H = 90;
   const totalH      = headLines.length * HEAD_LINE_H;
   const headStartY  = Math.max(100, Math.floor(H / 2 - totalH / 2) - 40);
 
-  const subLines = wrapText(escapeXml(subtext), 30).slice(0, 2);
+  const subLines = wrapText(subtext, 30).map(escapeXml).slice(0, 2);
 
   const parts = [
     // Gradient vignette — keep corners dark so text reads cleanly
@@ -2988,12 +2999,12 @@ async function buildTemplateW(
   const df = (field) => browserMode ? ` data-field="${field}"` : '';
 
   const headText  = toTitleCase(headline || businessName || '');
-  const headLines = wrapText(escapeXml(headText), 22).slice(0, 2);
+  const headLines = wrapText(headText, 22).map(escapeXml).slice(0, 2);
   const FONT_SIZE = headLines.length > 1 ? 62 : 72;
   const headFS_H  = FONT_SIZE + 10;
   const headStartY = BAND2_Y + Math.floor((BAND2_H - headLines.length * headFS_H) / 2);
 
-  const subLines = wrapText(escapeXml(subtext), 30).slice(0, 3);
+  const subLines = wrapText(subtext, 30).map(escapeXml).slice(0, 3);
   const svcs     = Array.isArray(services) ? services.slice(0, 4) : [];
 
   const parts = [
@@ -3087,11 +3098,11 @@ async function buildTemplateX(
   const y2 = Math.floor(H * 0.18);  // right side: 243px down
 
   const headText  = toTitleCase(headline || businessName || '');
-  const headLines = wrapText(escapeXml(headText), 14).slice(0, 3);
+  const headLines = wrapText(headText, 14).map(escapeXml).slice(0, 3);
   const HEAD_LINE_H = 82;
   const PAD         = 64;
   const headStartY  = 88;
-  const subLines    = wrapText(escapeXml(subtext), 24).slice(0, 2);
+  const subLines    = wrapText(subtext, 24).map(escapeXml).slice(0, 2);
   const ctaLabel    = escapeXml(cta || 'Call Now');
 
   const parts = [
@@ -3170,7 +3181,7 @@ async function buildTemplateAA(
   const numFS    = numStr.length > 4 ? 168 : numStr.length > 3 ? 198 : 228;
 
   const headText  = toTitleCase(headline || '');
-  const headLines = wrapText(escapeXml(headText), 26).slice(0, 2);
+  const headLines = wrapText(headText, 26).map(escapeXml).slice(0, 2);
   const fw        = fingerprint?.typographyWeight === 1 ? '800' : '900';
   const bgPat     = getBgPattern(fingerprint?.bgPattern ?? 0, '#ffffff', 0.048);
   const df = (field) => browserMode ? ` data-field="${field}"` : '';
@@ -3199,7 +3210,7 @@ async function buildTemplateAA(
 
   // Subtext
   if (subtext) {
-    const subLines = wrapText(escapeXml(subtext), 34).slice(0, 2);
+    const subLines = wrapText(subtext, 34).map(escapeXml).slice(0, 2);
     const subY = headStartY + headLines.length * 52 + 20;
     subLines.forEach((l, i) => {
       parts.push(`<text x="${W / 2}" y="${subY + i * 38}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="21" fill="rgba(255,255,255,0.68)" text-anchor="middle" dominant-baseline="hanging">${l}</text>`);
@@ -3214,7 +3225,7 @@ async function buildTemplateAA(
 
   if (browserMode) {
     const img = photoUrl ? `<image href="${escapeXml(photoUrl)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/>` : `<rect width="${W}" height="${H}" fill="${darkenHex(c.primary, 0.15)}"/>`;
-    if (logoUrl) parts.push(`<image href="${escapeXml(logoUrl)}" x="28" y="H - 100" width="50" height="50" preserveAspectRatio="xMidYMid meet"/>`);
+    if (logoUrl) parts.push(`<image href="${escapeXml(logoUrl)}" x="28" y="${H - 100}" width="50" height="50" preserveAspectRatio="xMidYMid meet"/>`);
     return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${img}${parts.join('')}</svg>`;
   }
   const svgBuf = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${parts.join('')}</svg>`);
@@ -3250,8 +3261,8 @@ async function buildTemplateAB(
   const df = (field) => browserMode ? ` data-field="${field}"` : '';
 
   const headText  = headline || businessName || '';
-  const headLines = wrapText(escapeXml(headText), 24).slice(0, 4);
-  const subLines  = wrapText(escapeXml(subtext), 36).slice(0, 3);
+  const headLines = wrapText(headText, 24).map(escapeXml).slice(0, 4);
+  const subLines  = wrapText(subtext, 36).map(escapeXml).slice(0, 3);
 
   // Bottom-anchored layout: text anchored to the bottom third
   const textZoneTop = Math.floor(H * 0.60);
@@ -3262,7 +3273,7 @@ async function buildTemplateAB(
     // Very thin brand-color horizontal rule — the one deliberate element
     `<rect x="${PAD}" y="${textZoneTop - 24}" width="${W - PAD * 2}" height="2" fill="${c.primary}"/>`,
     // Eyebrow: tiny, maximum letter-spacing
-    `<text${df('eyebrow')} x="${PAD}" y="${textZoneTop - 48}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="12" font-weight="700" letter-spacing="5" fill="${c.secondary}" dominant-baseline="auto">${escapeXml((eyebrow || industry || '').toUpperCase().slice(0, 22))}</text>`,
+    `<text${df('eyebrow')} x="${PAD}" y="${textZoneTop - 48}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="12" font-weight="700" letter-spacing="5" fill="${c.secondary}" dominant-baseline="auto" paint-order="stroke fill" stroke="#ffffff" stroke-width="3" stroke-opacity="0.55">${escapeXml((eyebrow || industry || '').toUpperCase().slice(0, 22))}</text>`,
   ];
 
   // Headline — smaller than other templates, left-aligned, high tracking
@@ -3323,12 +3334,12 @@ async function buildTemplateAC(
   const df = (field) => browserMode ? ` data-field="${field}"` : '';
 
   const headText  = toTitleCase(headline || businessName || '');
-  const headLines = wrapText(escapeXml(headText), 16).slice(0, 3);
+  const headLines = wrapText(headText, 16).map(escapeXml).slice(0, 3);
   const HEAD_LH   = 78;
   const totalH    = headLines.length * HEAD_LH;
   const headStartY = Math.floor(H / 2 - totalH / 2) - 20;
 
-  const subLines = wrapText(escapeXml(subtext), 28).slice(0, 2);
+  const subLines = wrapText(subtext, 28).map(escapeXml).slice(0, 2);
   const ctaLabel = escapeXml(cta || 'Call Today');
 
   const parts = [
@@ -3410,8 +3421,8 @@ async function buildTemplateAD(
   const ICON_SIZE = 80;
 
   const headText  = toTitleCase(headline || businessName || '');
-  const headLines = wrapText(escapeXml(headText), 14).slice(0, 2);
-  const subLines  = wrapText(escapeXml(subtext), 22).slice(0, 2);
+  const headLines = wrapText(headText, 14).map(escapeXml).slice(0, 2);
+  const subLines  = wrapText(subtext, 22).map(escapeXml).slice(0, 2);
 
   const industryPath = INDUSTRY_ICONS[industry] || INDUSTRY_ICONS['general_contractor'];
   const iconScale    = ICON_SIZE / 24;
@@ -3511,7 +3522,7 @@ async function buildTemplateAE(
   ];
 
   const headText  = toTitleCase(headline || businessName || '');
-  const headLines = wrapText(escapeXml(headText), 28).slice(0, 1);
+  const headLines = wrapText(headText, 28).map(escapeXml).slice(0, 1);
 
   const parts = [
     // Photo zone: subtle dark veil to keep it from competing with the grid
@@ -3589,11 +3600,16 @@ async function buildTemplateAF(
   const bgPat    = getBgPattern(fingerprint?.bgPattern ?? 0, '#000000', 0.060);
   const df = (field) => browserMode ? ` data-field="${field}"` : '';
 
-  const headText  = toTitleCase(headline || businessName || '');
-  const headLines = wrapText(escapeXml(headText), 9).slice(0, 4);  // narrow column → short lines
-  const subLines  = wrapText(escapeXml(subtext), 16).slice(0, 3);
+  const headText     = toTitleCase(headline || businessName || '');
+  const headLinesRaw = wrapText(headText, 9).slice(0, 4);  // narrow column → short lines
+  const headLines    = headLinesRaw.map(escapeXml);
+  const subLines     = wrapText(subtext, 16).map(escapeXml).slice(0, 3);
 
-  const HEAD_FS  = headLines.length > 3 ? 68 : headLines.length > 2 ? 76 : 84;
+  // wrapText doesn't break single long words (e.g. "Landscaping") — shrink the font
+  // further when a line is long so it doesn't overflow the narrow 413px brand column.
+  const longestHeadLine = Math.max(...headLinesRaw.map(l => l.length), 1);
+  const HEAD_FS  = longestHeadLine > 10 ? 52 : longestHeadLine > 8 ? 62
+    : headLines.length > 3 ? 68 : headLines.length > 2 ? 76 : 84;
   const HEAD_LH  = HEAD_FS + 8;
   const headStartY = 110;
 
@@ -3610,10 +3626,11 @@ async function buildTemplateAF(
   ];
 
   // Eyebrow box — thick black bordered box in brand zone
+  const secondaryTextColor = getReadableTextColor(c.secondary);
   if (eyebrow) {
     const ey = escapeXml(eyebrow.toUpperCase().slice(0, 14));
     parts.push(`<rect x="${PAD}" y="${headStartY - 56}" width="${SPLIT_X - PAD - BORDER - 16}" height="36" fill="${c.secondary}" stroke="#000000" stroke-width="${BORDER}"/>`);
-    parts.push(`<text x="${PAD + 14}" y="${headStartY - 38}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="16" font-weight="900" fill="#000000" dominant-baseline="middle">${ey}</text>`);
+    parts.push(`<text x="${PAD + 14}" y="${headStartY - 38}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="16" font-weight="900" fill="${secondaryTextColor}" dominant-baseline="middle">${ey}</text>`);
   }
 
   // Headline — left-aligned, white, tight
@@ -3633,8 +3650,8 @@ async function buildTemplateAF(
   // Business name in bordered box at bottom-left
   const namBoxY = H - 130;
   parts.push(`<rect x="${PAD}" y="${namBoxY}" width="${SPLIT_X - PAD * 2 - BORDER}" height="90" fill="${c.secondary}" stroke="#000000" stroke-width="${BORDER}"/>`);
-  parts.push(`<text${df('businessName')} x="${PAD + 12}" y="${namBoxY + 28}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="19" font-weight="900" fill="#000000" dominant-baseline="hanging">${biz}</text>`);
-  if (ph) parts.push(`<text${df('phone')} x="${PAD + 12}" y="${namBoxY + 58}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="17" font-weight="700" fill="#000000" dominant-baseline="hanging">${ph}</text>`);
+  parts.push(`<text${df('businessName')} x="${PAD + 12}" y="${namBoxY + 28}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="19" font-weight="900" fill="${secondaryTextColor}" dominant-baseline="hanging">${biz}</text>`);
+  if (ph) parts.push(`<text${df('phone')} x="${PAD + 12}" y="${namBoxY + 58}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="17" font-weight="700" fill="${secondaryTextColor}" dominant-baseline="hanging">${ph}</text>`);
 
   // Photo zone — right side has thick top and bottom black border
   parts.push(`<rect x="${SPLIT_X}" y="0" width="${W - SPLIT_X}" height="${BORDER}" fill="#000000"/>`);
@@ -3842,8 +3859,8 @@ async function buildLandscapePanel(resizedBuf, cardOverlay, businessName, phone,
   const headText  = uppercase ? headline.toUpperCase() : toTitleCase(headline);
   const panelW    = 492;
   const padX      = 44;
-  const headLines = wrapText(escapeXml(headText), 15);
-  const subLines  = wrapText(escapeXml(subtext), 27);
+  const headLines = wrapText(headText, 15).map(escapeXml);
+  const subLines  = wrapText(subtext, 27).map(escapeXml);
   const bullets   = Array.isArray(services) ? services.slice(0, 2) : [];
   const { r: pr, g: pg, b: pb } = hexToRgbG(c.primary);
   const opacity   = fingerprint?.overlayOpacity || 0.90;
@@ -3905,8 +3922,8 @@ async function buildLandscapeCinematic(resizedBuf, cardOverlay, businessName, ph
     : colors;
   const { headline = '', eyebrow = '', subtext = '', cta = '', uppercase = false } = cardOverlay;
   const headText  = uppercase ? headline.toUpperCase() : toTitleCase(headline);
-  const headLines = wrapText(escapeXml(headText), 22);
-  const subLines  = wrapText(escapeXml(subtext), 44);
+  const headLines = wrapText(headText, 22).map(escapeXml);
+  const subLines  = wrapText(subtext, 44).map(escapeXml);
   const dark      = darkenHex(c.primary, 0.22);
   const lowerY    = Math.floor(FH * 0.58);
   const lowerH    = FH - lowerY;
@@ -3962,8 +3979,8 @@ async function buildLandscapeSplitCard(resizedBuf, cardOverlay, businessName, ph
   const cardY       = (FH - cardH) / 2;
   const cardRx      = fingerprint?.cornerRadiusMd || 20;
   const cPadX       = cardX + 40;
-  const headLines   = wrapText(escapeXml(headText), 14);
-  const subLines    = wrapText(escapeXml(subtext), 27);
+  const headLines   = wrapText(headText, 14).map(escapeXml);
+  const subLines    = wrapText(subtext, 27).map(escapeXml);
   const cardOpacity = fingerprint?.overlayOpacity || 0.92;
   const fw          = fingerprint?.typographyWeight === 1 ? '800' : '900';
   const headStartY  = cardY + 96;
@@ -4019,8 +4036,8 @@ async function buildGBBottomBanner(resizedBuf, cardOverlay, businessName, phone,
   const stripH     = FH - stripY;
   const padX       = 60;
   const stripOpac  = fingerprint?.overlayOpacity || 0.95;
-  const headLines  = wrapText(escapeXml(headText), 18);
-  const subLines   = wrapText(escapeXml(subtext), 36);
+  const headLines  = wrapText(headText, 18).map(escapeXml);
+  const subLines   = wrapText(subtext, 36).map(escapeXml);
   const bullets    = Array.isArray(services) ? services.slice(0, 2) : [];
   const headStartY = stripY + 52;
   const headLineH  = 64;
@@ -4076,8 +4093,8 @@ async function buildGBFullOverlay(resizedBuf, cardOverlay, businessName, phone, 
     : colors;
   const { headline = '', eyebrow = '', subtext = '', cta = '', services = [], uppercase = false } = cardOverlay;
   const headText   = uppercase ? headline.toUpperCase() : toTitleCase(headline);
-  const headLines  = wrapText(escapeXml(headText), 16);
-  const subLines   = wrapText(escapeXml(subtext), 30);
+  const headLines  = wrapText(headText, 16).map(escapeXml);
+  const subLines   = wrapText(subtext, 30).map(escapeXml);
   const bullets    = Array.isArray(services) ? services.slice(0, 3) : [];
   const padX       = 60;
   const dark       = darkenHex(c.primary, 0.28);
@@ -4146,8 +4163,8 @@ async function buildGBFloatCard(resizedBuf, cardOverlay, businessName, phone, co
   const cardRx      = fingerprint?.cornerRadiusLg || 24;
   const cPadX       = cardX + 60;
   const cardOpacity = fingerprint?.overlayOpacity || 0.92;
-  const headLines   = wrapText(escapeXml(headText), 22);
-  const subLines    = wrapText(escapeXml(subtext), 40);
+  const headLines   = wrapText(headText, 22).map(escapeXml);
+  const subLines    = wrapText(subtext, 40).map(escapeXml);
   const bullets     = Array.isArray(services) ? services.slice(0, 2) : [];
   const headStartY  = cardY + 120;
   const headLineH   = 66;
