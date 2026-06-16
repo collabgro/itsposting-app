@@ -1840,26 +1840,34 @@ Return ONLY valid JSON (no markdown, no backticks):
               } catch {}
             }
             // ── Image training data (fire-and-forget) ──────────────────────────
-            const _imgPrompt = imagePromptForGen;
-            const _imgUrl = mediaUrl;
-            const _imgProvider = imageResult.model?.includes('midjourney') ? 'midjourney' : 'nanobanana';
-            const _imgModel = imageResult.model || 'gemini-2.5-flash-image';
-            const _imgMs = imgGenMs;
-            setImmediate(async () => {
-              try {
-                await pool.query(
-                  `INSERT INTO image_training_data
-                     (post_id, customer_id, input_prompt, output_url, provider, industry,
-                      content_type, model_used, generation_time_ms, created_at)
-                   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
-                   ON CONFLICT DO NOTHING`,
-                  [null, session.customerId, _imgPrompt, _imgUrl, _imgProvider,
-                   session.customer.industry, answers.contentTypeSelection, _imgModel, _imgMs]
-                );
-              } catch (e) {
-                console.warn('[Wizard] image_training_data insert failed:', e.message);
-              }
-            });
+            // Only log genuine NanoBanana/Midjourney generations — this table feeds the
+            // PostCore Image LoRA fine-tune (prompt -> AI output pairs). Stock photos were
+            // never generated from _imgPrompt at all (picked via keyword search), so logging
+            // them under any provider would teach the model a false prompt->image association.
+            if (mediaSource === 'nanobanana' || mediaSource === 'customer_upload') {
+              const _imgPrompt = imagePromptForGen;
+              const _imgUrl = mediaUrl;
+              const _imgProvider = mediaSource === 'customer_upload'
+                ? 'customer_upload'
+                : (imageResult.model?.includes('midjourney') ? 'midjourney' : 'nanobanana');
+              const _imgModel = imageResult.model || 'gemini-2.5-flash-image';
+              const _imgMs = imgGenMs;
+              setImmediate(async () => {
+                try {
+                  await pool.query(
+                    `INSERT INTO image_training_data
+                       (post_id, customer_id, input_prompt, output_url, provider, industry,
+                        content_type, model_used, generation_time_ms, created_at)
+                     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
+                     ON CONFLICT DO NOTHING`,
+                    [null, session.customerId, _imgPrompt, _imgUrl, _imgProvider,
+                     session.customer.industry, answers.contentTypeSelection, _imgModel, _imgMs]
+                  );
+                } catch (e) {
+                  console.warn('[Wizard] image_training_data insert failed:', e.message);
+                }
+              });
+            }
           }
         } catch (imgErr) {
           console.error('[Wizard] Image generation failed after retries:', imgErr.message, imgErr.stack?.split('\n')[1]);
