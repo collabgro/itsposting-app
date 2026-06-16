@@ -557,21 +557,28 @@ class StockMediaService {
     ).filter(p => !p.requiresAttribution);
     if (!eligible.length) return null;
 
-    // Cache hit
+    // Cache hit — walk candidates the same way the fresh-search path does below,
+    // instead of giving up after just the top one (was silently lowering the hit rate
+    // on every request after the first for a given keyword set).
     const cached = this.cache.get(searchKeywords);
     if (cached && cached.length > 0) {
       console.log(`[StockMedia] Cache hit: ${searchKeywords.join(', ')}`);
-      let top = this._score(cached[0], searchKeywords);
-      if (top._tagOverlap > 0.8) {
-        top = await this._resolveUrl(top);
-        this._onSelected(top);
-        return top;
-      }
-      const ok = await this._validateWithVision(top, mustMatchScene, threshold);
-      if (ok) {
-        top = await this._resolveUrl(top);
-        this._onSelected(top);
-        return top;
+      const rescored = cached
+        .map(c => this._score(c, searchKeywords))
+        .sort((a, b) => b._score - a._score);
+      for (let candidate of rescored.slice(0, maxCandidates)) {
+        if (candidate._tagOverlap < 0.5) continue;
+        if (candidate._tagOverlap > 0.8) {
+          candidate = await this._resolveUrl(candidate);
+          this._onSelected(candidate);
+          return candidate;
+        }
+        const ok = await this._validateWithVision(candidate, mustMatchScene, threshold);
+        if (ok) {
+          candidate = await this._resolveUrl(candidate);
+          this._onSelected(candidate);
+          return candidate;
+        }
       }
       return null;
     }
