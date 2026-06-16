@@ -18,6 +18,17 @@ const DMPollingService = require('../services/DMPollingService');
 const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET;
 const FACEBOOK_WEBHOOK_VERIFY_TOKEN = process.env.FACEBOOK_WEBHOOK_VERIFY_TOKEN;
 
+// Constant-time string comparison — plain !== leaks timing info byte-by-byte,
+// letting an attacker recover a valid signature/token via repeated probing.
+// timingSafeEqual throws on length mismatch, so guard that first (a length
+// mismatch itself is not secret, so short-circuiting on it leaks nothing new).
+function safeCompare(a, b) {
+  const bufA = Buffer.from(String(a || ''), 'utf8');
+  const bufB = Buffer.from(String(b || ''), 'utf8');
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
 module.exports = (pool) => {
   const router = express.Router();
   const notifier = new NotificationService(pool);
@@ -59,7 +70,7 @@ module.exports = (pool) => {
         .createHmac('sha256', secret)
         .update(req.body)
         .digest('hex');
-      if (expected !== sig) {
+      if (!safeCompare(expected, sig)) {
         console.warn('[HeyGen Webhook] Signature mismatch — ignoring payload');
         return;
       }
@@ -162,7 +173,7 @@ module.exports = (pool) => {
     const adminSecret = process.env.ADMIN_SECRET;
     if (!adminSecret) return res.status(503).json({ error: 'ADMIN_SECRET not configured on this server' });
     const provided = req.headers['x-admin-secret'] || req.body?.adminSecret;
-    if (provided !== adminSecret) {
+    if (!safeCompare(provided, adminSecret)) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
@@ -220,7 +231,7 @@ module.exports = (pool) => {
     const token = req.query['hub.verify_token'];
     const challenge = req.query['hub.challenge'];
 
-    if (mode === 'subscribe' && token === FACEBOOK_WEBHOOK_VERIFY_TOKEN) {
+    if (mode === 'subscribe' && safeCompare(token, FACEBOOK_WEBHOOK_VERIFY_TOKEN)) {
       console.log('[MetaWebhook] Verification challenge accepted');
       return res.status(200).send(challenge);
     }
@@ -250,7 +261,7 @@ module.exports = (pool) => {
           return;
         }
         const expected = 'sha256=' + crypto.createHmac('sha256', FACEBOOK_APP_SECRET).update(req.body).digest('hex');
-        if (expected !== sig) {
+        if (!safeCompare(expected, sig)) {
           console.warn('[MetaWebhook] Signature mismatch — ignoring payload');
           return;
         }
@@ -317,7 +328,7 @@ module.exports = (pool) => {
     if (!timestamp || !nonce) return res.sendStatus(403);
     const sigStr = [nonce, timestamp].sort().join('\n');
     const expected = crypto.createHmac('sha256', secret).update(sigStr).digest('hex');
-    if (client_token !== expected) {
+    if (!safeCompare(client_token, expected)) {
       console.warn('[TikTokWebhook] Verification failed — signature mismatch');
       return res.sendStatus(403);
     }
@@ -347,7 +358,7 @@ module.exports = (pool) => {
           return;
         }
         const expected = crypto.createHmac('sha256', secret).update(ts + req.body.toString()).digest('hex');
-        if (expected !== sig) {
+        if (!safeCompare(expected, sig)) {
           console.warn('[TikTokWebhook] Signature mismatch — ignoring payload');
           return;
         }

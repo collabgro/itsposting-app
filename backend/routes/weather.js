@@ -9,6 +9,7 @@
  */
 
 const express = require('express');
+const crypto = require('crypto');
 const { authenticate } = require('../middleware/auth');
 const WeatherAlertService = require('../services/WeatherAlertService');
 
@@ -108,9 +109,16 @@ module.exports = function weatherRoutes(pool) {
   // Cron endpoint — called every hour by Railway cron.
   // Generates morning alerts for all customers where it's currently 5:30-7:00am local.
   router.post('/generate-alerts', async (req, res) => {
-    const secret = req.headers['x-cron-secret'] || req.query.secret;
-    if (process.env.NODE_ENV !== 'development' && secret !== process.env.CRON_SECRET) {
-      return res.status(401).json({ error: 'Unauthorized' });
+    const secret = req.headers['x-cron-secret'] || req.query.secret || '';
+    const expected = process.env.CRON_SECRET || '';
+    if (process.env.NODE_ENV !== 'development') {
+      // Reject outright if CRON_SECRET isn't configured — an unset secret must
+      // never silently allow the request through (undefined !== undefined was
+      // previously true, leaving this endpoint open with no secret configured).
+      if (!expected || secret.length !== expected.length ||
+          !crypto.timingSafeEqual(Buffer.from(secret), Buffer.from(expected))) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
     }
     // Respond immediately to avoid cron timeout
     res.json({ status: 'running', message: 'Weather alert generation started in background' });

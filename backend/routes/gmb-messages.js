@@ -9,8 +9,17 @@
  */
 
 const express = require('express');
+const crypto = require('crypto');
 const GMBMessagesService = require('../services/GMBMessagesService');
 const ReceptionistService = require('../services/ReceptionistService');
+
+// Constant-time string comparison — plain === leaks timing info byte-by-byte.
+function safeCompare(a, b) {
+  const bufA = Buffer.from(String(a || ''), 'utf8');
+  const bufB = Buffer.from(String(b || ''), 'utf8');
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
 
 module.exports = function gmbMessagesRoutes(pool) {
   const router = express.Router();
@@ -22,7 +31,13 @@ module.exports = function gmbMessagesRoutes(pool) {
     // Google sends a challenge to verify the endpoint
     const { secret, clientToken } = req.query;
     const expectedSecret = process.env.GMB_WEBHOOK_SECRET;
-    if (expectedSecret && secret !== expectedSecret) {
+    if (!expectedSecret) {
+      if (process.env.NODE_ENV === 'production') {
+        console.error('[GMBMessages] GMB_WEBHOOK_SECRET not set in production — rejecting verification');
+        return res.status(403).send('Forbidden');
+      }
+      console.warn('[GMBMessages] GMB_WEBHOOK_SECRET not set — skipping check (dev only)');
+    } else if (!safeCompare(secret, expectedSecret)) {
       return res.status(403).send('Forbidden');
     }
     // Echo back clientToken to confirm endpoint ownership

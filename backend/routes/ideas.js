@@ -719,8 +719,10 @@ module.exports = (pool) => {
 
   // POST /api/ideas/generate-daily — cron: pre-warm shared industry cache, then fan out to customers
   router.post('/generate-daily', async (req, res) => {
-    const secret = req.headers['x-cron-secret'];
-    if (!secret || secret !== process.env.CRON_SECRET) {
+    const secret = req.headers['x-cron-secret'] || '';
+    const expected = process.env.CRON_SECRET || '';
+    if (!expected || secret.length !== expected.length ||
+        !crypto.timingSafeEqual(Buffer.from(secret), Buffer.from(expected))) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 

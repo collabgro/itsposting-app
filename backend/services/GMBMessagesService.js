@@ -8,7 +8,16 @@
  */
 
 const axios = require('axios');
+const crypto = require('crypto');
 const { google } = require('googleapis');
+
+// Constant-time string comparison — plain === leaks timing info byte-by-byte.
+function safeCompare(a, b) {
+  const bufA = Buffer.from(String(a || ''), 'utf8');
+  const bufB = Buffer.from(String(b || ''), 'utf8');
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
 
 class GMBMessagesService {
   constructor() {
@@ -60,9 +69,16 @@ class GMBMessagesService {
   verifyWebhookSignature(req) {
     // Google Business Messages uses a client token for webhook verification
     const clientToken = process.env.GMB_WEBHOOK_CLIENT_TOKEN;
-    if (!clientToken) return true; // skip verification if not configured
+    if (!clientToken) {
+      if (process.env.NODE_ENV === 'production') {
+        console.error('[GMBMessages] GMB_WEBHOOK_CLIENT_TOKEN not set in production — rejecting payload');
+        return false;
+      }
+      console.warn('[GMBMessages] GMB_WEBHOOK_CLIENT_TOKEN not set — skipping check (dev only)');
+      return true;
+    }
     const incomingToken = req.query.clientToken || req.body?.clientToken;
-    return incomingToken === clientToken;
+    return safeCompare(incomingToken, clientToken);
   }
 
   // Normalise a GBM webhook payload into a standard message object
