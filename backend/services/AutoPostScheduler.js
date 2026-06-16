@@ -55,10 +55,14 @@ class AutoPostScheduler {
   }
 
   async processPost(post) {
-    await this.pool.query(
-      `UPDATE posts SET status = 'posting', updated_at = NOW() WHERE id = $1`,
+    // Atomic claim: only transition if still 'scheduled'. Without the WHERE guard, a
+    // concurrent manual "Post Now" click (or a second scheduler instance) racing this
+    // same post would both proceed to publish, double-posting to every connected platform.
+    const claim = await this.pool.query(
+      `UPDATE posts SET status = 'posting', updated_at = NOW() WHERE id = $1 AND status = 'scheduled' RETURNING id`,
       [post.id]
     );
+    if (claim.rowCount === 0) return; // already claimed elsewhere — skip
 
     try {
       // Load carousel slides so SocialPublisher can publish a true multi-image carousel

@@ -13,14 +13,22 @@ function createOAuthState(customerId) {
   return Buffer.from(JSON.stringify({ data, sig })).toString('base64');
 }
 
+const OAUTH_STATE_MAX_AGE_MS = 10 * 60 * 1000; // state nonce must not be replayable indefinitely
+
 function verifyOAuthState(stateParam) {
   const outer = JSON.parse(Buffer.from(decodeURIComponent(stateParam), 'base64').toString());
   if (!outer.data || !outer.sig) throw new Error('Malformed state');
   const expectedSig = crypto.createHmac('sha256', process.env.JWT_SECRET || 'fallback-secret').update(outer.data).digest('hex');
-  if (!crypto.timingSafeEqual(Buffer.from(expectedSig, 'hex'), Buffer.from(outer.sig, 'hex'))) {
+  const expectedBuf = Buffer.from(expectedSig, 'hex');
+  const sigBuf = Buffer.from(String(outer.sig), 'hex');
+  if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(expectedBuf, sigBuf)) {
     throw new Error('State signature invalid');
   }
-  return JSON.parse(outer.data);
+  const decoded = JSON.parse(outer.data);
+  if (!decoded.ts || Date.now() - decoded.ts > OAUTH_STATE_MAX_AGE_MS) {
+    throw new Error('State expired');
+  }
+  return decoded;
 }
 
 const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID;
@@ -959,8 +967,17 @@ module.exports = (pool) => {
         }
       }
 
-      // Mark as publishing
-      await pool.query(`UPDATE posts SET status = 'posting', updated_at = NOW() WHERE id = $1`, [postId]);
+      // Atomic claim: only transition out of a re-publishable state. Without the WHERE
+      // guard here, a manual click racing the AutoPostScheduler cron (or two manual
+      // double-clicks) would both proceed and double-post to every connected platform.
+      const claim = await pool.query(
+        `UPDATE posts SET status = 'posting', updated_at = NOW()
+         WHERE id = $1 AND status NOT IN ('posting', 'posted') RETURNING id`,
+        [postId]
+      );
+      if (claim.rowCount === 0) {
+        return res.status(409).json({ error: 'This post is already being published or has already been posted.' });
+      }
 
       // Flush HTTP headers immediately so Railway's reverse-proxy doesn't time out waiting for the
       // first response byte. Instagram carousel posting can take 15-30s (4 items × wait loop).
