@@ -420,7 +420,6 @@ module.exports = (pool) => {
         );
         if (agencyR.rows[0].credits_balance < credits) {
           await pgClient.query('ROLLBACK');
-          pgClient.release();
           return res.status(400).json({ error: 'Insufficient credits in your agency account.' });
         }
 

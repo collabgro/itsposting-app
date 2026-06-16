@@ -148,12 +148,22 @@ module.exports = (pool) => {
 
           const customer = customerResult.rows[0];
           const customerId = customer.id;
-          const currentBalance = customer.credits_balance || 0;
-          const newBalance = currentBalance + planData.credits;
 
           const client = await pool.connect();
+          let newBalance;
           try {
             await client.query('BEGIN');
+
+            // Re-read + lock the balance inside the transaction — the outer
+            // customerResult read above is unlocked and can be stale if Whop
+            // fires overlapping webhooks (retries, activated+succeeded near-
+            // simultaneously) for the same customer. Without this re-read,
+            // two concurrent webhooks both compute newBalance off the same
+            // stale currentBalance and the second UPDATE clobbers the first
+            // credit grant instead of adding to it.
+            const lockRow = await client.query('SELECT credits_balance FROM customers WHERE id=$1 FOR UPDATE', [customerId]);
+            const currentBalance = lockRow.rows[0]?.credits_balance || 0;
+            newBalance = currentBalance + planData.credits;
 
             // If this payment matches a pending downgrade, apply it and clear
             const isPendingDowngradeFulfilled = customer.pending_downgrade_plan === tier;
