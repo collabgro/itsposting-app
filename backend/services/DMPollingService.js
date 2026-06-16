@@ -15,6 +15,7 @@
 
 const cron = require('node-cron');
 const axios = require('axios');
+const ReceptionistService = require('./ReceptionistService');
 
 const FACEBOOK_GRAPH_URL = 'https://graph.facebook.com/v19.0';
 
@@ -22,6 +23,7 @@ class DMPollingService {
   constructor(pool) {
     this.pool = pool;
     this.running = false;
+    this.receptionistSvc = new ReceptionistService(pool);
   }
 
   start() {
@@ -158,7 +160,10 @@ class DMPollingService {
 
           if (inserted && isIncoming) {
             newCount++;
-            await this.checkAndApplyAutoReply(customerId, conversationId, msg.message, 'facebook', accessToken, sender.id);
+            const handledByAi = await this._maybeHandleWithReceptionist(customerId, conversationId, msg.message, 'facebook', accessToken, pageId, sender.id);
+            if (!handledByAi) {
+              await this.checkAndApplyAutoReply(customerId, conversationId, msg.message, 'facebook', accessToken, sender.id);
+            }
 
             const windowExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
             const humanWindowExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -248,7 +253,10 @@ class DMPollingService {
 
           if (inserted && isIncoming) {
             newCount++;
-            await this.checkAndApplyAutoReply(customerId, conversationId, msg.message, 'instagram', accessToken, sender.id);
+            const handledByAi = await this._maybeHandleWithReceptionist(customerId, conversationId, msg.message, 'instagram', accessToken, igAccountId, sender.id);
+            if (!handledByAi) {
+              await this.checkAndApplyAutoReply(customerId, conversationId, msg.message, 'instagram', accessToken, sender.id);
+            }
 
             const windowExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
             await this.pool.query(
@@ -550,6 +558,46 @@ class DMPollingService {
   }
 
   // ─────────────────────────────────────────────────────────
+  // AI Receptionist: if the customer has it enabled for this platform,
+  // let Claude handle the message (and actually send the reply via the
+  // platform API) instead of falling through to the simpler keyword-based
+  // auto-reply rules below. Returns true if the AI receptionist took
+  // ownership of this message (handled, escalated, or drafted) so the
+  // caller knows to skip checkAndApplyAutoReply and avoid sending two
+  // separate replies to the same inbound message.
+  // ─────────────────────────────────────────────────────────
+
+  async _maybeHandleWithReceptionist(customerId, conversationId, messageText, platform, accessToken, accountId, recipientId) {
+    if (platform !== 'facebook' && platform !== 'instagram') return false;
+    try {
+      const cfgResult = await this.pool.query(
+        `SELECT enabled, active_platforms FROM receptionist_config WHERE customer_id = $1`,
+        [customerId]
+      );
+      const cfg = cfgResult.rows[0];
+      if (!cfg?.enabled) return false;
+      if (cfg.active_platforms && typeof cfg.active_platforms === 'object' &&
+          !Array.isArray(cfg.active_platforms) && cfg.active_platforms[platform] === false) {
+        return false;
+      }
+
+      const result = await this.receptionistSvc.handleIncoming(platform, conversationId, messageText, customerId);
+
+      // handleIncoming() only stores the AI reply in dm_messages — it never talks to the
+      // platform API itself (ReceptionistService is platform-agnostic). Actually deliver it here.
+      if (result?.autoSent && result?.reply) {
+        await this._sendPlatformMessage(platform, accessToken, accountId, recipientId, result.reply).catch(err =>
+          console.error(`[DMPolling] Receptionist send error (${platform}):`, err.message)
+        );
+      }
+      return true;
+    } catch (err) {
+      console.error(`[DMPolling] Receptionist error for customer ${customerId}:`, err.message);
+      return false; // fall through to the keyword auto-reply rules on any failure
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────
   // Auto-reply: check rules and send if matched
   // ─────────────────────────────────────────────────────────
 
@@ -770,7 +818,10 @@ class DMPollingService {
       );
 
       if (inserted) {
-        await this.checkAndApplyAutoReply(customerId, conversationId, messageText, platform, accessToken, senderId);
+        const handledByAi = await this._maybeHandleWithReceptionist(customerId, conversationId, messageText, platform, accessToken, pageId, senderId);
+        if (!handledByAi) {
+          await this.checkAndApplyAutoReply(customerId, conversationId, messageText, platform, accessToken, senderId);
+        }
 
         const windowExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
         const humanWindowExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);

@@ -231,8 +231,12 @@ RULES:
     // Receptionist not configured — skip
     if (!config?.enabled) return { handled: false, reason: 'receptionist_disabled' };
 
-    // Platform not active for this customer
-    if (config.active_platforms?.length && !config.active_platforms.includes(platform)) {
+    // Platform not active for this customer. active_platforms is stored (and sent by the
+    // frontend toggle UI in knowledge-base.js) as an object — {facebook, instagram, google} —
+    // not an array, so the old `.length` / `.includes()` check always evaluated to false on
+    // a plain object and silently never blocked anything, making the per-platform toggle a no-op.
+    if (config.active_platforms && typeof config.active_platforms === 'object' &&
+        !Array.isArray(config.active_platforms) && config.active_platforms[platform] === false) {
       return { handled: false, reason: 'platform_not_active' };
     }
 
