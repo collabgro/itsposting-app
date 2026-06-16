@@ -46,6 +46,22 @@ function uploadToCloudinary(buffer, options) {
   });
 }
 
+async function _refundExternalCredit(pool, billingId, reason) {
+  try {
+    const { rows: [refunded] } = await pool.query(
+      'UPDATE customers SET credits_balance = credits_balance + 1 WHERE id = $1 RETURNING credits_balance',
+      [billingId]
+    );
+    await pool.query(
+      `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description)
+       VALUES ($1, 'refund', 1, $2, $3)`,
+      [billingId, refunded?.credits_balance ?? null, reason]
+    );
+  } catch (refundErr) {
+    console.error('[external] Credit refund failed (manual review needed):', refundErr.message);
+  }
+}
+
 module.exports = (pool) => {
   const router = express.Router();
   const authMiddleware = authenticateApiKey(pool);
@@ -184,31 +200,43 @@ module.exports = (pool) => {
 
       const billingId = getBillingCustomerId(req);
 
-      // Credit check + deduction (SELECT FOR UPDATE)
+      // ── Credit check + deduction (SELECT FOR UPDATE) — commits and releases the
+      // connection immediately, BEFORE the slow Claude call. Holding the row lock
+      // open across an external API call would block every other request touching
+      // this customer's credits for the duration of that call. See geo.js for the
+      // reference pattern: deduct -> commit -> release -> THEN do the slow work.
+      let cust, newBalance;
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
-        const { rows: [cust] } = await client.query(
+        const { rows: [_cust] } = await client.query(
           'SELECT credits_balance, plan, business_name, industry, location FROM customers WHERE id = $1 FOR UPDATE',
           [billingId]
         );
 
-        if (!cust) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Account not found' }); }
-        if (cust.credits_balance < 1) {
+        if (!_cust) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Account not found' }); }
+        if (_cust.credits_balance < 1) {
           await client.query('ROLLBACK');
           return res.status(402).json({ error: 'Insufficient credits. Please top up your account.' });
         }
-
-        const newBalance = cust.credits_balance - 1;
+        cust = _cust;
+        newBalance = _cust.credits_balance - 1;
         await client.query('UPDATE customers SET credits_balance = $1, updated_at = NOW() WHERE id = $2', [newBalance, billingId]);
         await client.query(
           `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description)
            VALUES ($1, 'debit', 1, $2, 'API generate — text caption')`,
           [billingId, newBalance]
         );
+        await client.query('COMMIT');
+      } catch (txErr) {
+        await client.query('ROLLBACK');
+        throw txErr;
+      } finally {
+        client.release();
+      }
 
-        // Build a concise system prompt
-        let systemPrompt = `You are ItsPosting AI, an AI social media expert for local service businesses.
+      // Build a concise system prompt
+      let systemPrompt = `You are ItsPosting AI, an AI social media expert for local service businesses.
 Generate a single social media post caption for ${cust.business_name || 'a local business'} (${cust.industry || 'trades'} industry${cust.location ? `, based in ${cust.location}` : ''}).
 
 Platform: ${platform}
@@ -223,41 +251,38 @@ Platform guidelines:
 Respond ONLY with valid JSON in this exact format:
 {"caption":"...","hashtags":["tag1","tag2"],"engagementQuestion":"..."}`;
 
-        let caption = '';
-        let hashtags = [];
-        try {
-          const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-          const message = await anthropic.messages.create({
-            model: 'claude-sonnet-4-6',
-            max_tokens: 1024,
-            messages: [{ role: 'user', content: systemPrompt }],
-          });
-          const raw = message.content[0]?.text?.replace(/```json|```/g, '').trim() || '{}';
-          const parsed = JSON.parse(raw);
-          caption = parsed.caption || '';
-          hashtags = parsed.hashtags || [];
-        } catch (aiErr) {
-          console.error('[external] generate AI error:', aiErr.message);
-          await client.query('ROLLBACK');
-          return res.status(500).json({ error: 'AI generation failed. Credits were not deducted.' });
-        }
+      let caption = '';
+      let hashtags = [];
+      try {
+        const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+        const message = await anthropic.messages.create({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 1024,
+          messages: [{ role: 'user', content: systemPrompt }],
+        });
+        const raw = message.content[0]?.text?.replace(/```json|```/g, '').trim() || '{}';
+        const parsed = JSON.parse(raw);
+        caption = parsed.caption || '';
+        hashtags = parsed.hashtags || [];
+      } catch (aiErr) {
+        console.error('[external] generate AI error:', aiErr.message);
+        await _refundExternalCredit(pool, billingId, 'AI generation failed - credit refunded');
+        return res.status(500).json({ error: 'AI generation failed. Your credit has been refunded.' });
+      }
 
-        // Save as draft post
-        const { rows: [post] } = await client.query(
+      // Save as draft post
+      try {
+        const { rows: [post] } = await pool.query(
           `INSERT INTO posts (customer_id, caption, platform, content_type, status, source, created_at, updated_at)
            VALUES ($1, $2, $3, $4, 'draft', 'api', NOW(), NOW())
            RETURNING id, caption, platform, content_type, status, source, created_at`,
           [req.customerId, caption, platform, contentType]
         );
-
-        await client.query('COMMIT');
-
         res.status(201).json({ post, hashtags, creditsRemaining: newBalance });
-      } catch (err) {
-        await client.query('ROLLBACK');
-        throw err;
-      } finally {
-        client.release();
+      } catch (dbErr) {
+        console.error('[external] generate DB save error:', dbErr.message);
+        await _refundExternalCredit(pool, billingId, 'Post save failed - credit refunded');
+        res.status(500).json({ error: 'Failed to save post. Your credit has been refunded.' });
       }
     } catch (err) {
       console.error('[external] generate error:', err.message);

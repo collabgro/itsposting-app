@@ -106,6 +106,24 @@ function buildOverlaySVG(title, subtitle, style, width, height, overlayColor, te
 
 // ── Routes ───────────────────────────────────────────────────────────────────
 
+async function _refundStudioCredits(pool, billingId, amount, reason) {
+  try {
+    const { rows: [refunded] } = await pool.query(
+      'UPDATE customers SET credits_balance = credits_balance + $1 WHERE id = $2 RETURNING credits_balance',
+      [amount, billingId]
+    );
+    await pool.query(
+      `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description)
+       VALUES ($1, 'refund', $2, $3, $4)`,
+      [billingId, amount, refunded?.credits_balance ?? null, reason]
+    );
+    return refunded?.credits_balance ?? null;
+  } catch (refundErr) {
+    console.error('[Studio] Credit refund failed (manual review needed):', refundErr.message);
+    return null;
+  }
+}
+
 module.exports = (pool) => {
   const router = express.Router();
 
@@ -722,14 +740,16 @@ Return ONLY valid JSON (no markdown fences):
 
   // POST /api/studio/ai-clip — generate an AI video clip (5 credits)
   router.post('/ai-clip', authenticate, async (req, res) => {
+    const COST = 5;
+    let billingId = null;
+    let deducted = false;
     try {
       const { prompt, aspectRatio = '9:16', durationSeconds = 7 } = req.body;
       if (!prompt?.trim()) return res.status(400).json({ error: 'Prompt is required' });
 
-      const billingId = await getBillingCustomerId(req);
+      billingId = await getBillingCustomerId(req);
 
       // Atomic credit deduction (5 credits)
-      const COST = 5;
       const { rows: [updated] } = await pool.query(
         `UPDATE customers SET credits_balance = credits_balance - $1
          WHERE id = $2 AND credits_balance >= $1
@@ -739,6 +759,7 @@ Return ONLY valid JSON (no markdown fences):
       if (!updated) {
         return res.status(402).json({ error: `Insufficient credits. Generating an AI clip costs ${COST} credits.` });
       }
+      deducted = true;
 
       await pool.query(
         `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description)
@@ -755,6 +776,11 @@ Return ONLY valid JSON (no markdown fences):
         durationSeconds: Math.min(Math.max(parseInt(durationSeconds) || 7, 3), 15),
       });
 
+      if (!result?.url) {
+        const refunded = await _refundStudioCredits(pool, billingId, COST, 'AI clip generation returned no video - credits refunded');
+        return res.status(502).json({ error: 'AI clip generation failed. Your credits have been refunded.', creditsRemaining: refunded });
+      }
+
       res.json({
         clip: {
           url: result.url,
@@ -766,7 +792,10 @@ Return ONLY valid JSON (no markdown fences):
       });
     } catch (err) {
       console.error('[Studio] POST /ai-clip:', err.message);
-      res.status(500).json({ error: 'Failed to generate AI clip' });
+      if (deducted && billingId) {
+        await _refundStudioCredits(pool, billingId, COST, 'AI clip generation failed - credits refunded');
+      }
+      res.status(500).json({ error: 'Failed to generate AI clip. Your credits have been refunded.' });
     }
   });
 
