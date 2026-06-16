@@ -110,14 +110,20 @@ module.exports = (pool) => {
       const folder = req.body.folder || 'all';
       const totalUploadSize = req.files.reduce((sum, f) => sum + f.size, 0);
 
+      // FOR UPDATE locks the customer row for the duration of this upload so a second
+      // concurrent upload (two tabs, or two API key integrations) can't read the same
+      // stale storage_used_bytes and both pass the quota check — without this lock both
+      // requests see "9.8GB used, 200MB more is fine" and the customer ends up over quota.
+      await client.query('BEGIN');
       const quotaResult = await client.query(
-        'SELECT storage_used_bytes, storage_quota_bytes FROM customers WHERE id = $1',
+        'SELECT storage_used_bytes, storage_quota_bytes FROM customers WHERE id = $1 FOR UPDATE',
         [req.customerId]
       );
       const used = parseInt(quotaResult.rows[0].storage_used_bytes) || 0;
       const quota = parseInt(quotaResult.rows[0].storage_quota_bytes) || STORAGE_QUOTA_BYTES;
 
       if (used + totalUploadSize > quota) {
+        await client.query('ROLLBACK');
         return res.status(413).json({
           error: 'Storage quota exceeded',
           available: formatBytes(quota - used),
@@ -125,7 +131,6 @@ module.exports = (pool) => {
         });
       }
 
-      await client.query('BEGIN');
       const uploaded = [];
 
       for (const file of req.files) {

@@ -236,6 +236,18 @@ RULES:
       return { handled: false, reason: 'platform_not_active' };
     }
 
+    // A conversation already escalated to a human (legal threat, emergency, complaint,
+    // explicit human request) must stay with the human until they mark it back to 'open'
+    // via PATCH /api/dms/:id/status. Without this check, every subsequent message in that
+    // thread keeps getting AI-generated — and potentially auto-sent — replies, which is
+    // exactly the situation escalation exists to prevent.
+    const convRes = await this.pool.query(
+      `SELECT status FROM dm_conversations WHERE id=$1`, [conversationId]
+    );
+    if (convRes.rows[0]?.status === 'escalated') {
+      return { handled: false, reason: 'already_escalated' };
+    }
+
     const { reply, intent, shouldEscalate } = await this.generateResponse(
       customerId, conversationId, newMessage, platform
     );
