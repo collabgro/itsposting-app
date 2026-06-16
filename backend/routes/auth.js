@@ -28,7 +28,12 @@ module.exports = (pool) => {
    */
   router.post('/register', async (req, res) => {
     try {
-      const { email, password, businessName, industry, location, parentRef, referredBy, agencyHandle } = req.body;
+      const { password, businessName, industry, location, parentRef, referredBy, agencyHandle } = req.body;
+      // Normalize email to lowercase before any lookup/insert — the customers.email column
+      // is a plain case-sensitive UNIQUE VARCHAR (no citext, no lower(email) index), so
+      // without this, "Bob@x.com" and "bob@x.com" pass the "already registered" check as
+      // distinct rows, creating duplicate accounts that later can't log in with the other casing.
+      const email = (req.body.email || '').toLowerCase().trim();
 
       if (!email || !password || !businessName) {
         return res.status(400).json({ error: 'Missing required fields' });
@@ -133,7 +138,8 @@ module.exports = (pool) => {
    */
   router.post('/login', async (req, res) => {
     try {
-      const { email, password } = req.body;
+      const { password } = req.body;
+      const email = (req.body.email || '').toLowerCase().trim();
 
       if (!email || !password) {
         return res.status(400).json({ error: 'Email and password required' });
@@ -418,7 +424,7 @@ module.exports = (pool) => {
    */
   router.post('/forgot-password', async (req, res) => {
     try {
-      const { email } = req.body;
+      const email = (req.body.email || '').toLowerCase().trim();
       if (!email) return res.status(400).json({ error: 'Email required' });
 
       const customer = await pool.query('SELECT id FROM customers WHERE email = $1', [email]);

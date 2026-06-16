@@ -1,5 +1,7 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
+const dns = require('dns').promises;
+const net = require('net');
 
 class ScraperService {
   // Real Chrome UAs — rotated to avoid bot detection
@@ -46,26 +48,70 @@ class ScraperService {
     }
   }
 
-  _isPrivateHost(hostname) {
-    const blocked = [
-      /^127\./,
-      /^10\./,
-      /^192\.168\./,
-      /^172\.(1[6-9]|2[0-9]|3[01])\./,
-      /^169\.254\./,
-      /^::1$/,
-      /^fc00:/i,
-      /^fe80:/i,
-    ];
-    const blockedNames = ['localhost', 'metadata.google.internal', 'instance-data.ec2.internal'];
-    return blocked.some(p => p.test(hostname)) || blockedNames.includes(hostname.toLowerCase());
+  // Checks the actual resolved IP, not the hostname string — a hostname-only
+  // blocklist is trivially bypassed by DNS rebinding (an attacker-controlled
+  // domain whose A/AAAA record points straight at 169.254.169.254 or an
+  // internal Railway service would never match a string pattern like /^10\./).
+  _isPrivateIp(ip) {
+    if (net.isIPv4(ip)) {
+      const [a, b] = ip.split('.').map(Number);
+      return (
+        a === 127 ||                              // loopback
+        a === 10 ||                                // RFC1918
+        (a === 172 && b >= 16 && b <= 31) ||        // RFC1918
+        (a === 192 && b === 168) ||                 // RFC1918
+        (a === 169 && b === 254) ||                 // link-local / cloud metadata
+        (a === 100 && b >= 64 && b <= 127) ||        // CGNAT
+        a === 0                                      // "this network"
+      );
+    }
+    if (net.isIPv6(ip)) {
+      const lower = ip.toLowerCase();
+      if (lower === '::1') return true;              // loopback
+      if (lower.startsWith('fc') || lower.startsWith('fd')) return true; // unique-local fc00::/7
+      if (lower.startsWith('fe8') || lower.startsWith('fe9') || lower.startsWith('fea') || lower.startsWith('feb')) return true; // link-local fe80::/10
+      // IPv4-mapped IPv6 (::ffff:a.b.c.d) — recheck the embedded IPv4
+      const mapped = lower.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+      if (mapped) return this._isPrivateIp(mapped[1]);
+      return false;
+    }
+    return true; // unparseable — fail closed
   }
 
-  async fetchPage(url) {
-    const urlObj = new URL(url);
-    if (this._isPrivateHost(urlObj.hostname)) {
+  _isPrivateHostname(hostname) {
+    const blockedNames = ['localhost', 'metadata.google.internal', 'instance-data.ec2.internal'];
+    return blockedNames.includes(hostname.toLowerCase());
+  }
+
+  // Resolves the hostname to its real IP address(es) and validates those —
+  // not the hostname string — so DNS rebinding can't bypass the check.
+  async _assertHostIsSafe(hostname) {
+    if (this._isPrivateHostname(hostname)) {
       throw new Error('URL resolves to a private or reserved address');
     }
+    let records;
+    try {
+      records = await dns.lookup(hostname, { all: true, verbatim: true });
+    } catch (e) {
+      throw new Error(`Could not resolve host: ${hostname}`);
+    }
+    if (!records.length || records.some(r => this._isPrivateIp(r.address))) {
+      throw new Error('URL resolves to a private or reserved address');
+    }
+  }
+
+  async fetchPage(url, redirectsLeft = 5) {
+    const urlObj = new URL(url);
+    if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
+      throw new Error('Invalid URL. Must start with http:// or https://');
+    }
+    await this._assertHostIsSafe(urlObj.hostname);
+
+    // maxRedirects is disabled here on purpose: axios/follow-redirects would
+    // otherwise follow 3xx hops itself without re-running the DNS/IP check
+    // above on each hop, letting a "safe" public URL redirect straight to an
+    // internal target. Redirects are followed manually below so every hop is
+    // re-validated.
     const response = await axios.get(url, {
       timeout: this.timeout,
       headers: {
@@ -81,13 +127,20 @@ class ScraperService {
         'Sec-Ch-Ua':                 '"Chromium";v="124", "Google Chrome";v="124"',
         'Sec-Ch-Ua-Mobile':          '?0',
       },
-      maxRedirects: 5,
+      maxRedirects: 0,
       maxContentLength: 10 * 1024 * 1024,
       maxBodyLength: 10 * 1024 * 1024,
       decompress: true,
       validateStatus: (s) => s < 500,
     });
-    return { html: response.data, finalUrl: response.request.res?.responseUrl || url };
+
+    if (response.status >= 300 && response.status < 400 && response.headers.location) {
+      if (redirectsLeft <= 0) throw new Error('Too many redirects');
+      const nextUrl = new URL(response.headers.location, url).href;
+      return this.fetchPage(nextUrl, redirectsLeft - 1);
+    }
+
+    return { html: response.data, finalUrl: url };
   }
 
   extractTitle($) {
