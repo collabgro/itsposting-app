@@ -59,7 +59,7 @@ class SocialPublisher {
       [post.customer_id]
     );
 
-    const platformPostIds = {};
+    const succeeded = [];
     const errors = [];
 
     const results = await Promise.allSettled(
@@ -73,7 +73,7 @@ class SocialPublisher {
     for (const r of results) {
       if (r.status === 'fulfilled') {
         const { account, id } = r.value;
-        if (id) platformPostIds[account.platform] = id;
+        if (id) succeeded.push({ account, id });
       } else {
         const { account, err } = r.reason;
         const apiDetail = err?.response?.data ? JSON.stringify(err.response.data) : null;
@@ -82,7 +82,35 @@ class SocialPublisher {
       }
     }
 
+    const platformPostIds = this._collectPlatformPostIds(succeeded);
     return { platformPostIds, errors };
+  }
+
+  // Customers can connect MULTIPLE accounts of the same platform (e.g. two
+  // Facebook Pages, or two Instagram accounts via different Pages — see
+  // social.js's /callback/facebook, which loops over every returned Page).
+  // Keying platformPostIds purely by account.platform silently overwrites
+  // one account's post ID with another's when both succeed, permanently
+  // losing the first one from posts.platform_post_ids (breaks metrics sync
+  // and any later per-post platform lookup for that account). Keep the bare
+  // platform key when only one account of that platform succeeded (no
+  // behavior change for the common single-account case); only switch to the
+  // `${platform}_${account.id}` suffix — the format publishToAccounts() and
+  // MetricsSyncService._resolvePlatformId already understand — when 2+
+  // accounts of the same platform actually succeeded.
+  _collectPlatformPostIds(succeeded) {
+    const byPlatform = {};
+    for (const s of succeeded) (byPlatform[s.account.platform] ||= []).push(s);
+
+    const platformPostIds = {};
+    for (const [platform, list] of Object.entries(byPlatform)) {
+      if (list.length === 1) {
+        platformPostIds[platform] = list[0].id;
+      } else {
+        for (const s of list) platformPostIds[`${platform}_${s.account.id}`] = s.id;
+      }
+    }
+    return platformPostIds;
   }
 
   /**
@@ -141,7 +169,7 @@ class SocialPublisher {
       [post.customer_id, ...platformIds]
     );
 
-    const platformPostIds = {};
+    const succeeded = [];
     const errors = [];
 
     const results = await Promise.allSettled(
@@ -155,7 +183,7 @@ class SocialPublisher {
     for (const r of results) {
       if (r.status === 'fulfilled') {
         const { account, id } = r.value;
-        if (id) platformPostIds[account.platform] = id;
+        if (id) succeeded.push({ account, id });
       } else {
         const { account, err } = r.reason;
         const apiDetail = err?.response?.data ? JSON.stringify(err.response.data) : null;
@@ -164,6 +192,7 @@ class SocialPublisher {
       }
     }
 
+    const platformPostIds = this._collectPlatformPostIds(succeeded);
     return { platformPostIds, errors };
   }
 

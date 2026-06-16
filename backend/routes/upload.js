@@ -303,7 +303,7 @@ module.exports = (pool) => {
         message: scheduledDate
           ? `Scheduled for ${new Date(scheduledDate).toLocaleString()}`
           : isPublishNow
-            ? `Posted to ${publishResult ? Object.keys(publishResult.platformPostIds).join(', ') || 'platforms' : 'platforms'}!`
+            ? `Posted to ${publishResult ? [...new Set(Object.keys(publishResult.platformPostIds).map(k => k.replace(/_\d+$/, '')))].join(', ') || 'platforms' : 'platforms'}!`
             : 'Saved as draft (ready to post)',
         creditsUsed: 0,
       });

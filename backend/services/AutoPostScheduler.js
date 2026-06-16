@@ -144,7 +144,11 @@ class AutoPostScheduler {
           email: post.customer_email,
           business_name: post.customer_business_name,
         };
-        for (const platform of Object.keys(platformPostIds)) {
+        for (const key of Object.keys(platformPostIds)) {
+          // Keys are suffixed with the social_accounts row id ("facebook_57") when a
+          // customer has multiple connected accounts of the same platform — strip
+          // that back to a friendly platform name for notifications/emails.
+          const platform = key.replace(/_\d+$/, '');
           this.notifier.postPublished(post.customer_id, post.id, platform).catch(() => {});
           this.emailQueue.notifyPostPublished(customerObj, platform).catch(err =>
             console.error('[AutoPostScheduler] Email queue error:', err.message)

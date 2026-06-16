@@ -72,55 +72,73 @@ class MetricsSyncService {
     return { synced, skipped, errors };
   }
 
-  // Resolve a platform's post ID from the stored map.
-  // publishToPlatforms() uses clean keys ('facebook'), while publishToAccounts()
-  // uses suffixed keys ('facebook_123'). This handles both formats.
+  // Resolve a platform's post ID from the stored map, along with the specific
+  // social_accounts row id it belongs to when the key is suffixed
+  // ("facebook_123" — written when a customer has multiple connected accounts
+  // of the same platform; see SocialPublisher._collectPlatformPostIds). Without
+  // accountRowId, the caller has no way to know WHICH of several same-platform
+  // accounts a given post ID belongs to, and would have to guess — risking
+  // fetching metrics with the wrong account's access token entirely.
   _resolvePlatformId(platformIds, platform) {
-    if (platformIds[platform]) return platformIds[platform];
+    if (platformIds[platform] !== undefined) return { postId: platformIds[platform], accountRowId: null };
     const entry = Object.entries(platformIds).find(([k]) => k.startsWith(`${platform}_`));
-    return entry ? entry[1] : null;
+    if (!entry) return null;
+    const accountRowId = parseInt(entry[0].slice(platform.length + 1), 10);
+    return { postId: entry[1], accountRowId: Number.isFinite(accountRowId) ? accountRowId : null };
   }
 
   // Core sync logic — fetches from all platforms and writes to DB.
   async _syncPostMetrics(post, platformIds, customerId) {
     const accounts = await this.pool.query(
-      `SELECT platform, account_id, access_token FROM social_accounts
+      `SELECT id, platform, account_id, access_token FROM social_accounts
        WHERE customer_id = $1 AND platform IN ('facebook', 'instagram', 'tiktok') AND enabled = true`,
       [customerId]
     );
 
-    const accountMap = {};
-    for (const row of accounts.rows) accountMap[row.platform] = row;
+    // accountById resolves a specific account when the key carries a row id
+    // suffix; accountByPlatform is the fallback for the common single-account
+    // (bare key) case — keeping a "last one wins" pick ONLY when there's
+    // genuinely no other way to identify which account a bare key refers to.
+    const accountById = {};
+    const accountByPlatform = {};
+    for (const row of accounts.rows) {
+      accountById[row.id] = row;
+      accountByPlatform[row.platform] = row;
+    }
 
-    const fbPostId      = this._resolvePlatformId(platformIds, 'facebook');
-    const igPostId      = this._resolvePlatformId(platformIds, 'instagram');
-    const ttPublishId   = this._resolvePlatformId(platformIds, 'tiktok');
+    const fb = this._resolvePlatformId(platformIds, 'facebook');
+    const ig = this._resolvePlatformId(platformIds, 'instagram');
+    const tt = this._resolvePlatformId(platformIds, 'tiktok');
+
+    const fbAccount = fb?.accountRowId != null ? accountById[fb.accountRowId] : accountByPlatform.facebook;
+    const igAccount = ig?.accountRowId != null ? accountById[ig.accountRowId] : accountByPlatform.instagram;
+    const ttAccount = tt?.accountRowId != null ? accountById[tt.accountRowId] : accountByPlatform.tiktok;
 
     let fbReach = 0, igReach = 0, ttViews = 0;
     let likes = 0, comments = 0, shares = 0, impressions = 0;
     const synced_platforms = [];
 
-    if (fbPostId && accountMap.facebook) {
+    if (fb?.postId && fbAccount) {
       try {
-        const fb = await this._fetchFacebookMetrics(fbPostId, accountMap.facebook);
-        fbReach = fb.reach || 0;
-        likes += fb.likes || 0;
-        comments += fb.comments || 0;
-        shares += fb.shares || 0;
-        impressions += fb.impressions || 0;
+        const fbMetrics = await this._fetchFacebookMetrics(fb.postId, fbAccount);
+        fbReach = fbMetrics.reach || 0;
+        likes += fbMetrics.likes || 0;
+        comments += fbMetrics.comments || 0;
+        shares += fbMetrics.shares || 0;
+        impressions += fbMetrics.impressions || 0;
         synced_platforms.push('facebook');
       } catch (err) {
         console.warn(`[MetricsSyncService] FB metrics failed for post ${post.id}:`, err.message);
       }
     }
 
-    if (igPostId && accountMap.instagram) {
+    if (ig?.postId && igAccount) {
       try {
-        const ig = await this._fetchInstagramMetrics(igPostId, accountMap.instagram);
-        igReach = ig.reach || 0;
-        likes += ig.likes || 0;
-        comments += ig.comments || 0;
-        impressions += ig.impressions || 0;
+        const igMetrics = await this._fetchInstagramMetrics(ig.postId, igAccount);
+        igReach = igMetrics.reach || 0;
+        likes += igMetrics.likes || 0;
+        comments += igMetrics.comments || 0;
+        impressions += igMetrics.impressions || 0;
         synced_platforms.push('instagram');
       } catch (err) {
         // Instagram insights require a Business/Creator account — log clearly
@@ -132,13 +150,13 @@ class MetricsSyncService {
       }
     }
 
-    if (ttPublishId && accountMap.tiktok) {
+    if (tt?.postId && ttAccount) {
       try {
-        const tt = await this._fetchTikTokMetrics(ttPublishId, accountMap.tiktok);
-        likes += tt.likes || 0;
-        comments += tt.comments || 0;
-        shares += tt.shares || 0;
-        ttViews = tt.views || 0; // TikTok view_count is the closest equivalent to reach
+        const ttMetrics = await this._fetchTikTokMetrics(tt.postId, ttAccount);
+        likes += ttMetrics.likes || 0;
+        comments += ttMetrics.comments || 0;
+        shares += ttMetrics.shares || 0;
+        ttViews = ttMetrics.views || 0; // TikTok view_count is the closest equivalent to reach
         synced_platforms.push('tiktok');
       } catch (err) {
         const isScopeErr = err.response?.data?.error?.code === 'access_token_invalid'
