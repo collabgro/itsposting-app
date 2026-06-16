@@ -427,21 +427,21 @@ async function deleteSession(pool, id) {
   }
 }
 
-// Credit refund helper — called when video generation fails after credits were deducted
-async function _refundCredits(pool, billingId, postId, amount) {
+// Credit refund helper — called when generation fails after credits were pre-deducted
+async function _refundCredits(pool, billingId, postId, amount, reason = 'Generation failed - credits refunded') {
   if (!billingId || !amount) return;
   try {
     const refundRes = await pool.query(
-      'UPDATE customers SET credits_balance = credits_balance + $1 WHERE id = $2 RETURNING credits_balance',
+      'UPDATE customers SET credits_balance = credits_balance + $1, credits_used_this_month = GREATEST(0, credits_used_this_month - $1) WHERE id = $2 RETURNING credits_balance',
       [amount, billingId]
     );
     const newBalance = refundRes.rows[0]?.credits_balance ?? 0;
     await pool.query(
       `INSERT INTO credit_transactions (customer_id, post_id, transaction_type, amount, balance_after, description)
-       VALUES ($1, $2, 'refund', $3, $4, 'Video generation failed - credits refunded')`,
-      [billingId, postId, amount, newBalance]
+       VALUES ($1, $2, 'refund', $3, $4, $5)`,
+      [billingId, postId, amount, newBalance, reason]
     );
-    console.log(`[Wizard] Refunded ${amount} credit(s) to customer ${billingId} for failed video post ${postId}`);
+    console.log(`[Wizard] Refunded ${amount} credit(s) to customer ${billingId} for post ${postId}`);
   } catch (refundErr) {
     console.error('[Wizard] Credit refund failed (manual review needed):', refundErr.message);
   }
@@ -875,6 +875,11 @@ module.exports = (pool) => {
     req.setTimeout(280000); // 280s — just under Railway's 5-min proxy limit
     res.setTimeout(280000);
     let debugStage = 'start';
+    // Hoisted for catch-block access (refund on generation failure)
+    let _wizBillingId = null;
+    let _wizCreditCost = 1;
+    let _wizCreditPreDeducted = false;
+    let _wizPostSaved = false;
     try {
       const { wizardId, customerMediaUrl } = req.body;
 
@@ -974,26 +979,52 @@ module.exports = (pool) => {
 
       debugStage = 'credit_check';
       const billingId = getBillingCustomerId(req);
-      const creditRow = await pool.query(
-        `SELECT credits_balance, plan, status FROM customers WHERE id = $1`,
-        [billingId]
-      );
-      const freshCustomer = creditRow.rows[0];
-      if (!freshCustomer) {
-        return res.status(404).json({ error: 'Customer not found' });
-      }
-      if (freshCustomer.status === 'suspended') {
-        return res.status(403).json({ error: 'Your account is suspended. Please contact support.' });
-      }
-      if (freshCustomer.credits_balance < creditCost) {
-        return res.status(402).json({
-          error: `Not enough credits. This ${answers.contentTypeSelection} post costs ${creditCost} credit${creditCost !== 1 ? 's' : ''} but you only have ${freshCustomer.credits_balance}. Please upgrade your plan.`,
-        });
+      _wizBillingId = billingId;
+      _wizCreditCost = creditCost;
+      // ── Atomic credit check + pre-deduction (SELECT FOR UPDATE per CLAUDE.md) ──
+      let creditsRemaining = null;
+      {
+        const _cc = await pool.connect();
+        try {
+          await _cc.query('BEGIN');
+          const { rows: _cr } = await _cc.query(
+            `SELECT credits_balance, plan, status FROM customers WHERE id = $1 FOR UPDATE`,
+            [billingId]
+          );
+          const freshCustomer = _cr[0];
+          if (!freshCustomer) {
+            await _cc.query('ROLLBACK');
+            return res.status(404).json({ error: 'Customer not found' });
+          }
+          if (freshCustomer.status === 'suspended') {
+            await _cc.query('ROLLBACK');
+            return res.status(403).json({ error: 'Your account is suspended. Please contact support.' });
+          }
+          if (freshCustomer.credits_balance < creditCost) {
+            await _cc.query('ROLLBACK');
+            return res.status(402).json({
+              error: `Not enough credits. This ${answers.contentTypeSelection} post costs ${creditCost} credit${creditCost !== 1 ? 's' : ''} but you only have ${freshCustomer.credits_balance}. Please upgrade your plan.`,
+            });
+          }
+          const { rows: [_dr] } = await _cc.query(
+            `UPDATE customers SET credits_balance = credits_balance - $1, credits_used_this_month = credits_used_this_month + $1 WHERE id = $2 RETURNING credits_balance`,
+            [creditCost, billingId]
+          );
+          creditsRemaining = _dr.credits_balance;
+          _wizCreditPreDeducted = true;
+          await _cc.query('COMMIT');
+        } catch (_creditErr) {
+          try { await _cc.query('ROLLBACK'); } catch {}
+          throw _creditErr;
+        } finally {
+          _cc.release();
+        }
       }
 
       // ── Branded Card fast path (bypasses NanoBanana entirely) ───────────────
       if (answers.contentTypeSelection === 'branded_card') {
         if (!BrandedCardService || !ImageResizer) {
+          await _refundCredits(pool, billingId, null, creditCost, 'Branded card service unavailable - credits refunded');
           return res.status(503).json({ error: 'Branded card generation is not available on this server.' });
         }
 
@@ -1068,6 +1099,7 @@ Return ONLY valid JSON (no markdown, no backticks):
           cardParsed = JSON.parse(cleaned.substring(first, last + 1));
         } catch (cardClaudeErr) {
           console.error('[Wizard/BrandedCard] Claude call failed:', cardClaudeErr.message);
+          await _refundCredits(pool, billingId, null, creditCost, 'Branded card AI generation failed - credits refunded');
           return res.status(502).json({ error: 'AI generation failed for branded card. Please try again.' });
         }
 
@@ -1082,6 +1114,7 @@ Return ONLY valid JSON (no markdown, no backticks):
           ));
         } catch (sharpErr) {
           console.error('[Wizard/BrandedCard] Sharp generation failed:', sharpErr.message);
+          await _refundCredits(pool, billingId, null, creditCost, 'Branded card generation failed - credits refunded');
           return res.status(500).json({ error: 'Card generation failed. Please try again.' });
         }
 
@@ -1111,6 +1144,7 @@ Return ONLY valid JSON (no markdown, no backticks):
           ]);
         } catch (uploadErr) {
           console.error('[Wizard/BrandedCard] Cloudinary upload failed:', uploadErr.message);
+          await _refundCredits(pool, billingId, null, creditCost, 'Branded card upload failed - credits refunded');
           return res.status(500).json({ error: 'Card upload failed. Please try again.' });
         }
 
@@ -1153,36 +1187,24 @@ Return ONLY valid JSON (no markdown, no backticks):
           console.warn('[Wizard/BrandedCard] DB save failed:', dbErr.message);
         }
 
-        // Deduct credits
-        let bcCreditsRemaining = null;
+        // Credits already deducted atomically at the start via SELECT FOR UPDATE
+        const bcCreditsRemaining = creditsRemaining;
         if (bcPostId) {
+          _wizPostSaved = true;
+          try { await pool.query(`UPDATE posts SET credits_used = $1 WHERE id = $2`, [creditCost, bcPostId]); } catch {}
           try {
-            const deductResult = await pool.query(
-              `UPDATE customers SET credits_balance = credits_balance - $1, credits_used_this_month = credits_used_this_month + $1
-               WHERE id = $2 AND credits_balance >= $1 RETURNING credits_balance`,
-              [creditCost, billingId]
+            await pool.query(
+              `INSERT INTO credit_transactions (customer_id, post_id, transaction_type, amount, balance_after, description)
+               VALUES ($1, $2, 'debit', $3, $4, $5)`,
+              [billingId, bcPostId, -creditCost, bcCreditsRemaining, 'Generated branded card post via wizard']
             );
-            if (deductResult.rows.length > 0) {
-              bcCreditsRemaining = deductResult.rows[0].credits_balance;
-              try { await pool.query(`UPDATE posts SET credits_used = $1 WHERE id = $2`, [creditCost, bcPostId]); } catch {}
-              try {
-                await pool.query(
-                  `INSERT INTO credit_transactions (customer_id, post_id, transaction_type, amount, balance_after, description)
-                   VALUES ($1, $2, 'debit', $3, $4, $5)`,
-                  [billingId, bcPostId, -creditCost, bcCreditsRemaining, 'Generated branded card post via wizard']
-                );
-              } catch {}
-              if (bcCreditsRemaining < 10) {
-                const notifier = new NotificationService(pool);
-                notifier.lowCredits(billingId, bcCreditsRemaining);
-              }
-            } else {
-              try { await pool.query(`DELETE FROM posts WHERE id = $1`, [bcPostId]); } catch {}
-              return res.status(402).json({ error: 'Insufficient credits. Please refresh and try again.' });
-            }
-          } catch (creditErr) {
-            console.error('[Wizard/BrandedCard] Credit deduction failed:', creditErr.message);
+          } catch {}
+          if (bcCreditsRemaining < 10) {
+            const notifier = new NotificationService(pool);
+            notifier.lowCredits(billingId, bcCreditsRemaining);
           }
+        } else {
+          await _refundCredits(pool, billingId, null, creditCost, 'Branded card DB save failed - credits refunded');
         }
 
         return res.json({
@@ -1251,6 +1273,7 @@ Return ONLY valid JSON (no markdown, no backticks):
         ]);
       } catch (claudeErr) {
         console.error('[Wizard] Claude API error:', claudeErr.message || claudeErr);
+        await _refundCredits(pool, billingId, null, creditCost, 'AI generation failed - credits refunded');
         return res.status(502).json({ error: `AI generation failed: ${claudeErr.message || 'Unknown error'}` });
       }
 
@@ -1305,11 +1328,13 @@ Return ONLY valid JSON (no markdown, no backticks):
             parsed = JSON.parse(cleaned);
           } catch (jsonErr2) {
             console.error('[Wizard] JSON parse failed after repair:', jsonErr2.message, '| First 300 chars:', cleaned.substring(0, 300));
+            await _refundCredits(pool, billingId, null, creditCost, 'AI response format error - credits refunded');
             return res.status(502).json({ error: 'AI returned an unexpected format. Please try again.' });
           }
         }
       } catch (parseErr) {
         console.error('[Wizard] Failed to parse Claude response:', parseErr);
+        await _refundCredits(pool, billingId, null, creditCost, 'AI response parse error - credits refunded');
         return res.status(502).json({ error: 'Failed to parse AI response. Please try again.' });
       }
 
@@ -1351,6 +1376,7 @@ Return ONLY valid JSON (no markdown, no backticks):
 
       if (!transformedVariations.A.caption || !transformedVariations.B.caption || !transformedVariations.C.caption) {
         console.error('[Wizard] Invalid response structure from Claude:', parsed);
+        await _refundCredits(pool, billingId, null, creditCost, 'AI response missing captions - credits refunded');
         return res.status(502).json({ error: 'Invalid AI response structure. Please try again.' });
       }
 
@@ -1934,6 +1960,12 @@ Return ONLY valid JSON (no markdown, no backticks):
         console.warn('[Wizard] Could not save post to database:', dbErr.message);
       }
 
+      // Post failed to save despite credits being pre-deducted — refund and report failure
+      if (!savedPostId) {
+        await _refundCredits(pool, billingId, null, creditCost, 'Post save failed - credits refunded');
+        return res.status(500).json({ error: 'Failed to save post. Your credits have not been charged. Please try again.' });
+      }
+
       // ── Guard: skip credit deduction on complete image failure ─────────────
       // If the user paid for a photo/carousel and got zero images, don't charge them.
       const allSlidesFailed = answers.contentTypeSelection === 'carousel' &&
@@ -1945,7 +1977,12 @@ Return ONLY valid JSON (no markdown, no backticks):
       if (imageGenerationFullyFailed && savedPostId) {
         // Remove the empty post so nothing hangs around
         try { await pool.query(`DELETE FROM posts WHERE id = $1`, [savedPostId]); } catch {}
-        console.warn(`[Wizard] Image generation fully failed for ${answers.contentTypeSelection} — credits NOT deducted`);
+        // Credits were pre-deducted before generation — refund since the post never materialized.
+        // post_id passed as null since the post row above was just deleted (FK would reject a dangling id).
+        if (_wizCreditPreDeducted) {
+          await _refundCredits(pool, billingId, null, creditCost, 'Image generation failed - credits refunded');
+        }
+        console.warn(`[Wizard] Image generation fully failed for ${answers.contentTypeSelection} — credits refunded`);
         return res.json({
           success: true,
           imageGenerationFailed: true,
@@ -1955,49 +1992,29 @@ Return ONLY valid JSON (no markdown, no backticks):
         });
       }
 
-      // ── Deduct credits atomically after post is saved ────────────────────────
-      let creditsRemaining = null;
+      // ── Credit audit log — credits already deducted atomically at the start ──
       if (savedPostId) {
+        _wizPostSaved = true;
         try {
-          const deductResult = await pool.query(
-            `UPDATE customers
-             SET credits_balance          = credits_balance - $1,
-                 credits_used_this_month  = credits_used_this_month + $1
-             WHERE id = $2 AND credits_balance >= $1
-             RETURNING credits_balance`,
-            [creditCost, billingId]
-          );
-          if (deductResult.rows.length > 0) {
-            creditsRemaining = deductResult.rows[0].credits_balance;
-            // Also stamp the post with the credit cost
-            try {
-              await pool.query(`UPDATE posts SET credits_used = $1 WHERE id = $2`, [creditCost, savedPostId]);
-            } catch {} // credits_used column may not exist yet — safe to skip
-            // Audit log
-            try {
-              await pool.query(
-                `INSERT INTO credit_transactions (customer_id, post_id, transaction_type, amount, balance_after, description)
-                 VALUES ($1, $2, 'debit', $3, $4, $5)`,
-                [billingId, savedPostId, -creditCost, creditsRemaining, `Generated ${answers.contentTypeSelection} post via wizard`]
-              );
-            } catch (txErr) {
-              console.warn('[Wizard] credit_transactions insert failed:', txErr.message);
-            }
-            console.log(`[Wizard] Deducted ${creditCost} credit(s) for post ${savedPostId} — balance now ${creditsRemaining}`);
-            // Fire low-credits notification when balance drops below 10
-            if (creditsRemaining < 10) {
-              const notifier = new NotificationService(pool);
-              notifier.lowCredits(billingId, creditsRemaining);
-            }
-          } else {
-            // Race condition: credits fell below threshold between check and deduction
-            // Delete the post so the user isn't charged without a post
-            try { await pool.query(`DELETE FROM posts WHERE id = $1`, [savedPostId]); } catch {}
-            return res.status(402).json({ error: 'Insufficient credits. Please refresh and try again.' });
+          try {
+            await pool.query(`UPDATE posts SET credits_used = $1 WHERE id = $2`, [creditCost, savedPostId]);
+          } catch {} // credits_used column may not exist yet — safe to skip
+          try {
+            await pool.query(
+              `INSERT INTO credit_transactions (customer_id, post_id, transaction_type, amount, balance_after, description)
+               VALUES ($1, $2, 'debit', $3, $4, $5)`,
+              [billingId, savedPostId, -creditCost, creditsRemaining, `Generated ${answers.contentTypeSelection} post via wizard`]
+            );
+          } catch (txErr) {
+            console.warn('[Wizard] credit_transactions insert failed:', txErr.message);
           }
-        } catch (creditErr) {
-          console.error('[Wizard] Credit deduction failed:', creditErr.message);
-          // Don't fail the whole request — post exists, log the error for manual review
+          console.log(`[Wizard] ${creditCost} credit(s) for post ${savedPostId} — balance now ${creditsRemaining}`);
+          if (creditsRemaining < 10) {
+            const notifier = new NotificationService(pool);
+            notifier.lowCredits(billingId, creditsRemaining);
+          }
+        } catch (auditErr) {
+          console.error('[Wizard] Credit audit log failed:', auditErr.message);
         }
       }
 
@@ -2081,7 +2098,8 @@ Return ONLY valid JSON (no markdown, no backticks):
       // If no provider is configured for the chosen video type, refund and return a clear error
       if (isVideoPost && !videoServiceAvailable && savedPostId) {
         try { await pool.query(`DELETE FROM posts WHERE id = $1`, [savedPostId]); } catch {}
-        await _refundCredits(pool, billingId, savedPostId, creditCost);
+        // post_id passed as null — the post row above was just deleted (FK would reject a dangling id)
+        await _refundCredits(pool, billingId, null, creditCost, 'No video provider configured - credits refunded');
         const providerName = isAvatarVideo ? 'HeyGen (Avatar Video)' : 'Video Generation';
         return res.json({
           success: true,
@@ -2217,6 +2235,11 @@ Return ONLY valid JSON (no markdown, no backticks):
         },
       });
     } catch (err) {
+      // Refund pre-deducted credits if generation failed before the post was saved
+      if (_wizCreditPreDeducted && !_wizPostSaved && _wizBillingId) {
+        _refundCredits(pool, _wizBillingId, null, _wizCreditCost, 'Generation error - credits refunded')
+          .catch(re => console.error('[Wizard] Credit refund failed:', re.message));
+      }
       console.error('[Wizard] Error generating posts at stage', debugStage, ':', err.message || err, '\n', err.stack || '');
       if (!res.headersSent) {
         res.status(500).json({ error: `Server error at stage: ${debugStage}. Please try again.` });
@@ -3711,10 +3734,10 @@ Rules:
   // Returns the first model that works or the exact error from each model attempted.
   // Use this to diagnose image generation issues without running a full wizard flow.
   router.get('/test-image', authenticate, async (req, res) => {
-    if (!NanaBananaService) return res.json({ ok: false, error: 'NanoBananaService not loaded' });
+    if (!NanoBananaService) return res.json({ ok: false, error: 'NanoBananaService not loaded' });
     if (!process.env.GOOGLE_AI_API_KEY) return res.json({ ok: false, error: 'GOOGLE_AI_API_KEY not set' });
 
-    const nb = new NanaBananaService();
+    const nb = new NanoBananaService();
     try {
       const result = await nb.generateFromPrompt(
         { industry: 'plumbing', location: 'Test City, TX', business_name: 'Test Co' },

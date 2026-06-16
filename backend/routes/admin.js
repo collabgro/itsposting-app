@@ -31,8 +31,8 @@ module.exports = (pool) => {
     }
   };
 
-  // ── Browser-accessible diagnostics (no auth required — only returns non-sensitive info) ──
-  router.get('/diag/image-gen', async (req, res) => {
+  // ── Admin-only diagnostics (authenticate + adminOnly applied inline — must come before router.use below) ──
+  router.get('/diag/image-gen', authenticate, adminOnly, async (req, res) => {
     const axios = require('axios');
     const apiKey = process.env.GOOGLE_AI_API_KEY;
     if (!apiKey) return res.status(503).json({ error: 'GOOGLE_AI_API_KEY not set in Railway env vars' });

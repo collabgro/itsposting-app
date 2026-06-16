@@ -1202,6 +1202,26 @@ console.log('══════════════════════�
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS email_bounce_at TIMESTAMP`,
     `CREATE INDEX IF NOT EXISTS idx_customers_email_bounce
        ON customers(email_hard_bounced) WHERE email_hard_bounced = TRUE`,
+    // ── PostCore Suggestions — must be in startup so /api/suggestions doesn't crash on fresh deploy ──
+    `CREATE TABLE IF NOT EXISTS content_suggestions (
+      id                    SERIAL PRIMARY KEY,
+      customer_id           INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      type                  VARCHAR(50)  NOT NULL,
+      title                 TEXT         NOT NULL,
+      reason                TEXT         NOT NULL,
+      pre_generated_caption TEXT,
+      platform              VARCHAR(50)  DEFAULT 'facebook',
+      content_type          VARCHAR(50)  DEFAULT 'educational_tip',
+      reference_key         VARCHAR(255) NOT NULL,
+      status                VARCHAR(50)  DEFAULT 'pending',
+      expires_at            TIMESTAMP,
+      created_at            TIMESTAMP    DEFAULT NOW(),
+      updated_at            TIMESTAMP    DEFAULT NOW(),
+      UNIQUE (customer_id, reference_key)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_suggestions_customer        ON content_suggestions(customer_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_suggestions_status          ON content_suggestions(status)`,
+    `CREATE INDEX IF NOT EXISTS idx_suggestions_customer_status ON content_suggestions(customer_id, status) WHERE status = 'pending'`,
     // ── Weather Alerts — morning PostCore weather-triggered post suggestions ──
     `CREATE TABLE IF NOT EXISTS weather_alerts (
       id              SERIAL PRIMARY KEY,
