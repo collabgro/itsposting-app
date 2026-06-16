@@ -2,6 +2,8 @@
 
 const axios   = require('axios');
 const cheerio = require('cheerio');
+const dns     = require('dns').promises;
+const net     = require('net');
 
 // ── Plan limits ──────────────────────────────────────────────────────────────
 const PLAN_MAX_PAGES = {
@@ -52,15 +54,56 @@ class CrawlerService {
     this.pool = pool;
   }
 
-  // ── SSRF blocklist ───────────────────────────────────────────────────────
-  _isPrivateHost(hostname) {
-    const blocked = [
-      /^127\./, /^10\./, /^192\.168\./,
-      /^172\.(1[6-9]|2[0-9]|3[01])\./, /^169\.254\./,
-      /^::1$/, /^fc00:/i, /^fe80:/i,
-    ];
+  // ── SSRF protection ──────────────────────────────────────────────────────
+  // Validates the *resolved IP*, not the hostname string — a string-only
+  // blocklist (the previous implementation here) is bypassed trivially by a
+  // customer-controlled domain whose DNS record points straight at
+  // 169.254.169.254 or an internal service. This matters even more here than
+  // in ScraperService because crawl() drives a real headless Chromium browser
+  // (Playwright) against the URL, which has its own network stack.
+  _isPrivateIp(ip) {
+    if (net.isIPv4(ip)) {
+      const [a, b] = ip.split('.').map(Number);
+      return (
+        a === 127 ||
+        a === 10 ||
+        (a === 172 && b >= 16 && b <= 31) ||
+        (a === 192 && b === 168) ||
+        (a === 169 && b === 254) ||
+        (a === 100 && b >= 64 && b <= 127) ||
+        a === 0
+      );
+    }
+    if (net.isIPv6(ip)) {
+      const lower = ip.toLowerCase();
+      if (lower === '::1') return true;
+      if (lower.startsWith('fc') || lower.startsWith('fd')) return true;
+      if (/^fe[89ab]/.test(lower)) return true;
+      const mapped = lower.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+      if (mapped) return this._isPrivateIp(mapped[1]);
+      return false;
+    }
+    return true; // unparseable — fail closed
+  }
+
+  _isPrivateHostname(hostname) {
     const blockedNames = ['localhost', 'metadata.google.internal', 'instance-data.ec2.internal'];
-    return blocked.some(p => p.test(hostname)) || blockedNames.includes(hostname.toLowerCase());
+    return blockedNames.includes(hostname.toLowerCase());
+  }
+
+  async _assertHostIsSafe(hostname) {
+    if (this._isPrivateHostname(hostname)) {
+      throw new Error('URL resolves to a private or reserved address');
+    }
+    let records;
+    try {
+      records = await dns.lookup(hostname, { all: true, verbatim: true });
+    } catch (e) {
+      throw new Error(`Could not resolve host: ${hostname}`);
+    }
+    if (!records.length || records.some(r => this._isPrivateIp(r.address))) {
+      throw new Error('URL resolves to a private or reserved address');
+    }
   }
 
   _normalizeUrl(url) {
@@ -82,7 +125,7 @@ class CrawlerService {
     const normalizedUrl = this._normalizeUrl(url);
     try {
       const { hostname } = new URL(normalizedUrl);
-      if (this._isPrivateHost(hostname)) throw new Error('URL resolves to a private or reserved address');
+      await this._assertHostIsSafe(hostname);
     } catch (e) {
       if (e.message.includes('private or reserved')) throw e;
       throw new Error('Invalid URL');
@@ -176,6 +219,11 @@ class CrawlerService {
   // ── Core crawl runner ────────────────────────────────────────────────────
   async _runCrawl(jobId, seedUrl, mode, plan) {
     const maxPages = PLAN_MAX_PAGES[plan] || 15;
+
+    // Re-validate here too — recrawl() reaches this method directly without
+    // going through crawl()'s check, and DNS can change between the original
+    // crawl and a later recrawl (rebinding window).
+    await this._assertHostIsSafe(new URL(seedUrl).hostname);
 
     // Try to launch ONE Playwright browser for the whole crawl
     // Falls back to null → Cheerio-only mode
@@ -279,14 +327,34 @@ class CrawlerService {
     return [...discovered].slice(0, maxPages);
   }
 
+  // axios's automatic redirect-following (the old maxRedirects: 5 here and in
+  // _fetchCheerio) never re-checks the destination host — a "safe" public URL
+  // can 3xx straight to an internal target. maxRedirects is disabled and
+  // redirects are followed manually, re-validating the resolved IP each hop.
+  async _safeAxiosGet(url, opts = {}, redirectsLeft = 5) {
+    const urlObj = new URL(url);
+    if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
+      throw new Error('Invalid URL. Must start with http:// or https://');
+    }
+    await this._assertHostIsSafe(urlObj.hostname);
+
+    const resp = await axios.get(url, { ...opts, maxRedirects: 0, validateStatus: s => s < 500 });
+
+    if (resp.status >= 300 && resp.status < 400 && resp.headers.location) {
+      if (redirectsLeft <= 0) throw new Error('Too many redirects');
+      const nextUrl = new URL(resp.headers.location, url).href;
+      return this._safeAxiosGet(nextUrl, opts, redirectsLeft - 1);
+    }
+    return resp;
+  }
+
   async _parseSitemap(seedUrl) {
     const urls = [];
     try {
       const base = new URL(seedUrl).origin;
-      const resp = await axios.get(`${base}/sitemap.xml`, {
+      const resp = await this._safeAxiosGet(`${base}/sitemap.xml`, {
         timeout: 8000,
         headers: { 'User-Agent': this._randomUA() },
-        validateStatus: s => s < 400,
       });
       const matches = resp.data.match(/<loc>([^<]+)<\/loc>/g) || [];
       for (const m of matches) {
@@ -333,6 +401,7 @@ class CrawlerService {
 
   // ── Playwright fetch (JS rendering, stealth) ─────────────────────────────
   async _fetchPlaywright(url, browser) {
+    await this._assertHostIsSafe(new URL(url).hostname);
     const ua = this._randomUA();
 
     const ctx = await browser.newContext({
@@ -353,6 +422,24 @@ class CrawlerService {
         'Sec-Ch-Ua-Platform': '"Windows"',
         'Upgrade-Insecure-Requests': '1',
       },
+    });
+
+    // Block every request the browser itself makes (redirects, subresources,
+    // fetch()/XHR triggered by the page's own JS) that resolves to a private
+    // or reserved IP. The single _assertHostIsSafe call above only covers the
+    // initial navigation URL — Chromium has its own network stack and will
+    // happily follow a JS-driven redirect or fetch() to an internal target
+    // unless every request is checked here too.
+    await ctx.route('**/*', async (route) => {
+      let target;
+      try { target = new URL(route.request().url()); } catch { return route.abort(); }
+      if (target.protocol !== 'http:' && target.protocol !== 'https:') return route.continue();
+      try {
+        await this._assertHostIsSafe(target.hostname);
+        return route.continue();
+      } catch {
+        return route.abort();
+      }
     });
 
     // Stealth: remove webdriver fingerprint that Cloudflare and others detect
@@ -390,7 +477,7 @@ class CrawlerService {
   // ── Cheerio/axios fetch (static HTML, fast, reliable fallback) ───────────
   async _fetchCheerio(url) {
     const ua = this._randomUA();
-    const resp = await axios.get(url, {
+    const resp = await this._safeAxiosGet(url, {
       timeout: 18000,
       headers: {
         'User-Agent':                  ua,
@@ -406,10 +493,8 @@ class CrawlerService {
         'Sec-Ch-Ua-Mobile':            '?0',
         'Sec-Ch-Ua-Platform':          '"Windows"',
       },
-      maxRedirects:     5,
       maxContentLength: 10 * 1024 * 1024,
       decompress:       true,
-      validateStatus:   s => s < 500,
     });
 
     if (resp.status === 403 || resp.status === 429) {
