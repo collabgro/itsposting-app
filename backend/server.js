@@ -1269,10 +1269,32 @@ console.log('══════════════════════�
     // Smart Media Sourcing Layer — track where each post's image came from
     // Values: 'nanobanana' | 'customer_upload' | 'pixabay' | 'pexels' | 'unsplash' | 'freepik' | 'shutterstock' | 'storyblocks'
     `ALTER TABLE posts ADD COLUMN IF NOT EXISTS media_source VARCHAR(30) DEFAULT 'nanobanana'`,
+
+    // Fix post_ideas missing ON DELETE CASCADE — orphan rows accumulate when a customer is deleted.
+    // PostgreSQL names the auto-generated FK "post_ideas_customer_id_fkey" by convention.
+    `ALTER TABLE post_ideas DROP CONSTRAINT IF EXISTS post_ideas_customer_id_fkey`,
+    `ALTER TABLE post_ideas ADD CONSTRAINT post_ideas_customer_id_fkey
+       FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }
     catch (e) { console.warn('[Migration] Skipped:', e.message.substring(0, 80)); }
+  }
+
+  // Recover posts stuck in 'posting' status from a server crash or Railway restart mid-publish.
+  // Reset them to 'scheduled' (2 min from now) so the AutoPostScheduler cron retries them.
+  // 30-minute threshold avoids touching posts that are legitimately still in-flight on slow platforms.
+  try {
+    const stuckRes = await pool.query(
+      `UPDATE posts SET status = 'scheduled', scheduled_date = NOW() + INTERVAL '2 minutes', updated_at = NOW()
+       WHERE status = 'posting' AND updated_at < NOW() - INTERVAL '30 minutes'
+       RETURNING id`
+    );
+    if (stuckRes.rowCount > 0) {
+      console.log(`[Startup] Recovered ${stuckRes.rowCount} stuck post(s) back to scheduled`);
+    }
+  } catch (err) {
+    console.warn('[Startup] Stuck post recovery skipped:', err.message);
   }
 
   // Fix any canvas_templates rows whose industry was stored as 'general' but whose name

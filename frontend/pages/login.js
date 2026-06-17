@@ -129,12 +129,13 @@ export default function Login() {
     return () => clearTimeout(t);
   }, [resendCooldown]);
 
-  // Auto-submit when all 6 OTP digits are filled (avoids stale-closure issue)
+  // Auto-submit when all 6 OTP digits are filled.
+  // step and loading must be in the deps so the !loading guard reads current state.
   useEffect(() => {
     if (step === 'otp' && otpDigits.join('').length === 6 && !loading) {
       handleOtpSubmit(otpDigits.join(''));
     }
-  }, [otpDigits]);
+  }, [otpDigits, step, loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = async (e) => {
     e.preventDefault();
